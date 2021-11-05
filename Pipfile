@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+geochem-dataset-excel = {editable = true, path = "."}
+
+[dev-packages]
+ipdb = "*"
+pytest = "*"
+pytest-cov = "*"
+tox = "*"
+
+[requires]
+python_version = "3.9"
