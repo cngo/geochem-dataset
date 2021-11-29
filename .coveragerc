@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = geochem_dataset_excel
+source = geochem_dataset
 
 
 [paths]
