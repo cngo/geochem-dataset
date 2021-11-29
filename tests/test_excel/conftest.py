@@ -13,6 +13,6 @@ def dataset_path(tmp_path):
     dataset_path = tmp_path / 'ca.cngo.test'
     dataset_path.mkdir()
 
-    shutil.copytree('./tests/datasets/ca.cngo.test', dataset_path, dirs_exist_ok=True)
+    shutil.copytree('./tests/test_excel/datasets/ca.cngo.test', dataset_path, dirs_exist_ok=True)
 
     return dataset_path

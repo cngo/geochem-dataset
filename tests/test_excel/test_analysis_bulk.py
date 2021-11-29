@@ -1,8 +1,8 @@
 from copy import deepcopy
 
-from geochem_dataset_excel import Dataset
-from geochem_dataset_excel.dataclasses import Survey, Sample, Result
-from geochem_dataset_excel.exceptions import (
+from geochem_dataset.excel import Dataset
+from geochem_dataset.excel.dataclasses import Survey, Sample, Result
+from geochem_dataset.excel.exceptions import (
     IntegrityError,
 )
 

@@ -5,9 +5,9 @@ from openpyxl import load_workbook
 import pandas as pd
 import pytest
 
-from geochem_dataset_excel import Dataset
-from geochem_dataset_excel.dataclasses import Survey
-from geochem_dataset_excel.exceptions import IntegrityError
+from geochem_dataset.excel import Dataset
+from geochem_dataset.excel.dataclasses import Survey
+from geochem_dataset.excel.exceptions import IntegrityError
 
 from helpers.utils import xlref, xlrowref, xlcolref
 

@@ -1,7 +1,7 @@
 import pytest
 
-from geochem_dataset_excel import Dataset
-from geochem_dataset_excel.exceptions import InvalidDatasetNameError
+from geochem_dataset.excel import Dataset
+from geochem_dataset.excel.exceptions import InvalidDatasetNameError
 
 
 class TestDataset:
