@@ -1,5 +1,5 @@
-from ..dataclasses import Survey
-from . import SimpleExcelWorkbookInterface
+from geochem_dataset.excel.dataclasses import Survey
+from .bases.simple import SimpleExcelWorkbookInterface
 
 
 class Interface(SimpleExcelWorkbookInterface):

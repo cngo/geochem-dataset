@@ -1,7 +1,5 @@
-from functools import lru_cache
-
-from ..dataclasses import Sample
-from . import SimpleExcelWorkbookInterface
+from geochem_dataset.excel.dataclasses import Sample
+from .bases.simple import SimpleExcelWorkbookInterface
 
 
 class Interface(SimpleExcelWorkbookInterface):

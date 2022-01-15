@@ -1,5 +1,6 @@
-from ..dataclasses import Document
-from . import SimpleExcelWorkbookInterface
+
+from geochem_dataset.excel.dataclasses import Document
+from .bases.simple import SimpleExcelWorkbookInterface
 
 
 class Interface(SimpleExcelWorkbookInterface):

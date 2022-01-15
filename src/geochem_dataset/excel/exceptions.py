@@ -17,4 +17,8 @@ class IncorrectNumberOfRowsError(Exception):
 
 
 class IntegrityError(Exception):
-    pass
+    def __init__(self, message, *, workbook=None, worksheet=None, cell=None):
+        self.message = message
+        self.workbook = workbook
+        self.worksheet = worksheet
+        self.cell = cell
