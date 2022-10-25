@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import FrozenSet, Tuple
+
 
 Extra = FrozenSet[Tuple[str, str]]
 

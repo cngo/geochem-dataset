@@ -28,6 +28,7 @@ tags
 *.eggs/
 .installed.cfg
 *.egg-info
+src/_version.py
 
 # Unittest and coverage
 htmlcov/*
@@ -51,3 +52,7 @@ MANIFEST
 # Per-project virtualenvs
 .venv*/
 .conda*/
+venv/
+
+# Other
+NOTES.md

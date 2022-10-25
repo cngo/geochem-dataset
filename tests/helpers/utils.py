@@ -2,8 +2,6 @@ from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, NamedTuple
 
-from attr.validators import deep_mapping
-
 
 class DeleteField:
     pass
