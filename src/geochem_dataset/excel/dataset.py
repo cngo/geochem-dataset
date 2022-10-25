@@ -34,13 +34,13 @@ class Dataset:
         return self._extra_columns_ok
 
     def __enter__(self):
-        self._attach_interfaces()
+        self.attach_interfaces()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._detach_interfaces()
+        self.detach_interfaces()
 
-    def _attach_interfaces(self):
+    def attach_interfaces(self):
         self.documents = DocumentsInterface(self)
         self.surveys = SurveysInterface(self)
         self.samples = SamplesInterface(self)
@@ -50,7 +50,7 @@ class Dataset:
         except FileNotFoundError:
             pass
 
-    def _detach_interfaces(self):
+    def detach_interfaces(self):
         delattr(self, 'documents')
         delattr(self, 'surveys')
         delattr(self, 'samples')

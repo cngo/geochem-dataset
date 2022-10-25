@@ -166,7 +166,7 @@ class AnalysisExcelWorksheetInterface:
         ]
 
         for row_idx, subsample in subsamples.iterrows():
-            for column_idx, result_type_metadata_set_column in result_type_metadata_sets.iteritems():
+            for column_idx, result_type_metadata_set_column in result_type_metadata_sets.items():
                 # Get result type and metadata
 
                 if isinstance(result_type_metadata_set_column, pd.Series):
@@ -316,7 +316,7 @@ class AnalysisExcelWorksheetInterface:
 
         rows = column[self._geometry['metadata_types']['rows']]
 
-        for row_idx, metadata_type in rows.iteritems():
+        for row_idx, metadata_type in rows.items():
             # ERROR if a metadata type was not given
 
             if metadata_type is None:
@@ -328,7 +328,7 @@ class AnalysisExcelWorksheetInterface:
             duplicate_of_row_idx = None
             previous_rows = rows.loc[:row_idx-1]
 
-            for previous_row_idx, previous_metadata_type in previous_rows.iteritems():
+            for previous_row_idx, previous_metadata_type in previous_rows.items():
                 if metadata_type == previous_metadata_type:
                     duplicate_of_row_idx = previous_row_idx
                     break
@@ -357,7 +357,7 @@ class AnalysisExcelWorksheetInterface:
 
         df = self._df.iloc[self._geometry['result_type_metadata_sets']['rows'], self._geometry['result_type_metadata_sets']['columns']]
 
-        for column_idx, column in df.iteritems():
+        for column_idx, column in df.items():
             # EXTRACT result type and metadata from column
 
             if isinstance(column, pd.Series):
@@ -378,7 +378,7 @@ class AnalysisExcelWorksheetInterface:
             duplicate_of_column_idx = None
             previous_df = df.loc[0, :column_idx-1]
 
-            for previous_column_idx, previous_column in previous_df.iteritems():
+            for previous_column_idx, previous_column in previous_df.items():
                 if isinstance(previous_column, pd.Series):
                     previous_result_type = previous_column[0]
                     previous_metadata = tuple(previous_column[1:])

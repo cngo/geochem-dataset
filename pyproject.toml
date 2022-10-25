@@ -39,6 +39,9 @@ dynamic = ["version"]
 repository = "https://github.com/cngo/geochem-dataset/"
 
 [project.optional-dependencies]
+dev = [
+    "ipython",
+]
 tests = [
     "coverage[toml]",
     "pytest",
