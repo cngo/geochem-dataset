@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC
+import collections
 
 import numpy as np
 import pandas as pd
@@ -8,40 +9,11 @@ from geochem_dataset.excel.dataclasses import Result
 from geochem_dataset.excel.exceptions import IntegrityError
 from geochem_dataset.excel.interfaces import xlref, xlrowref, xlcolref
 
-NA_VALUES = ['-1.#IND', '1.#QNAN', '1.#IND', '-1.#QNAN', '#N/A N/A', '#N/A', 'N/A', 'n/a', '<NA>', '#NA', 'NULL', 'null', 'NaN', '-NaN', 'nan', '-nan', '']
-
 
 class AnalysisExcelWorkbookInterface(ABC):
     def __init__(self, dataset):
         self._dataset = dataset
-
         self._load()
-
-    def _load(self):
-        self._worksheets = {
-            sheet_name: AnalysisExcelWorksheetInterface(self, sheet_name)
-            for sheet_name in pd.ExcelFile(self.path).sheet_names
-        }
-
-        # for sheet_name in pd.ExcelFile(self.path).sheet_names:
-        #     self._worksheets[sheet_name] = AnalysisExcelWorksheetInterface(self, sheet_name)
-
-    def _validate(self):
-        sheet_names = list(self._worksheets.keys())
-
-        for i, sheet_name in enumerate(sheet_names):
-            if i == 0:
-                continue
-
-            for result in self._worksheets[sheet_name]:
-                for other_sheet_name in sheet_names[:i]:
-                    for other_result in self._worksheets[other_sheet_name]:
-                        if other_result.sample.name == result.sample.name and \
-                                other_result.subsample == result.subsample and \
-                                other_result.type == result.type and \
-                                other_result.metadata == result.metadata:
-                            raise IntegrityError(
-                                f"Subsample/result type/metadata combination for result in cell A1 was already used for result in cell A1 of worksheet {other_sheet_name}", workbook=self.path.name, worksheet=sheet_name, cell="A1")
 
     @property
     def dataset(self):
@@ -51,10 +23,34 @@ class AnalysisExcelWorkbookInterface(ABC):
     def path(self):
         return self._dataset.path / self._name
 
-    def __iter__(self):
+    @property
+    def results(self):
         for ws in self._worksheets.values():
-            for result in ws:
+            for result in ws.results:
                 yield result
+
+    def _load(self):
+        self._worksheets = {
+            worksheet_name: AnalysisExcelWorksheetInterface(self, worksheet_name)
+            for worksheet_name in pd.ExcelFile(self.path).sheet_names
+        }
+
+    # def _validate(self):
+    #     sheet_names = list(self._worksheets.keys())
+
+    #     for i, sheet_name in enumerate(sheet_names):
+    #         if i == 0:
+    #             continue
+
+    #         for result in self._worksheets[sheet_name]:
+    #             for other_sheet_name in sheet_names[:i]:
+    #                 for other_result in self._worksheets[other_sheet_name]:
+    #                     if other_result.sample.name == result.sample.name and \
+    #                             other_result.subsample == result.subsample and \
+    #                             other_result.type == result.type and \
+    #                             other_result.metadata == result.metadata:
+    #                         raise IntegrityError(
+    #                             f"Subsample/result type/metadata combination for result in cell A1 was already used for result in cell A1 of worksheet {other_sheet_name}", workbook=self.path.name, worksheet=sheet_name, cell="A1")
 
 
 class AnalysisExcelWorksheetInterface:
@@ -71,237 +67,330 @@ class AnalysisExcelWorksheetInterface:
     | sample_x | subsample_x | ... | sub...subsample_x |                 | result_x_1    | ... | result_x_y    |
     |----------|-------------|-----|-------------------|-----------------|---------------|-----|---------------|
 
-    The following outlines the steps involved in parsing the file:
+    The following outlines the steps involved in parsing the worksheet:
 
-    1. The first row must meet the following requirements:
+    1. Load the worksheet into a dataframe and modify it as follows:
 
-        - The first two columns must be "SAMPLE" and "SUBSAMPLE" and then followed by zero or more deeper subsample columns.
-        - The next column must be "METADATA_TYPE".
-        - The next zero or more columns are result types.
+        1. Cast values to strings
+        2. Strip whitespace from values
+        3. Convert empty string values to NaNs
+        4. Remove empty rows from the bottom
+        5. Remove empty columns from the right
 
-    2. The metadata type column must meet the following requirements:
+    2. Parse the dataframe:
 
-        - Zero or more metadata types must be given in the rows immediately following the "METADATA_TYPE" heading.
-        - The remaining rows must be empty.
+        1. Parse subsamples:
 
-    3. The subsample columns must meet the following requirements:
+            1. Determine columns:
 
-        - Zero or more subsamples must be given in the rows immediately following the last metadata type.
-        - The remaining rows must be empty.
+                1. A1 and B1 must be "SAMPLE" and "SUBSAMPLE", respectively
+                2. Optional subsequent columns, each with a heading equal to the previous heading prefixed with "SUB", e.g. "SUBSUBSAMPLE" for C1
 
-    4. Each result type column must meet the following requirements:
+            2. Determine rows:
 
-        - Metadata values corresponding to the metadata types of their respective rows must be given. Values can empty.
-        - Results corresponding to the subsamples of their respective rows must be given. Values can be empty.
-        - The remaining rows must be empty.
+                1. Begins on first non-empty row
+                2. Must end on the last row of the dataframe
 
+            3. For each subsample:
+
+                1. Check if all values are given
+                2. Check if sample exists
+                3. Check if it's a duplicate of a previous one
+
+        2. Parse metadata types:
+
+            1. Determine column:
+
+                1. Must be the column following the subsample columns
+
+            2. Determine rows (if any):
+
+                1. Must begin on row 2
+                2. Must end on row before the first subsample row
+
+            3. For each metadata type:
+
+                1. Check if a value is given
+                2. Check if it's a duplicate of a previous one
+
+            4. Check if all cells below the last metadata type are empty
+
+        3. Parse result type/metadata sets:
+
+            1. Determine columns:
+
+                1. Must begin on the column following the metadata type column
+                2. Must end on the last column of the dataframe
+
+            2. Determine rows:
+
+                1. Must begin on row 1
+                2. Must end on the last metadata type row
+
+            3. For each result type/metadata set:
+
+                1. Check if a value is given for result type
+                2. Check if it's a duplicate of a previous one
     """
 
-    def __init__(self, workbook: AnalysisExcelWorkbookInterface, sheet_name: str):
+    def __init__(self, workbook: AnalysisExcelWorkbookInterface, name: str):
         self._workbook = workbook
-        self._sheet_name = sheet_name
+        self._name = name
 
-        self._load_dataframe()
-        self._compute_geometry()
-        self._validate_dataframe()
+        self._load()
+        self._parse()
 
-    def _load_dataframe(self):
-        self._df = pd.read_excel(self._workbook.path, sheet_name=self._sheet_name, header=None, keep_default_na=False, na_values=NA_VALUES)
-        self._df = self._df.replace({np.nan: None})
+    @property
+    def workbook(self) -> AnalysisExcelWorkbookInterface:
+        return self._workbook
 
-    def _compute_geometry(self):
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def results(self) -> collections.abc.Generator:
+        subsamples = self._df.iloc[
+            self._geometry['subsamples']['rows'],
+            self._geometry['subsamples']['columns']
+        ]
+
+        metadata_types = self._df.iloc[
+            self._geometry['metadata_types']['rows'],
+            self._geometry['metadata_types']['column']
+        ]
+
+        result_type_metadata_sets = self._df.iloc[
+            self._geometry['result_type_metadata_sets']['rows'],
+            self._geometry['result_type_metadata_sets']['columns']
+        ]
+
+        for row_idx, subsample in subsamples.iterrows():
+            for column_idx, result_type_metadata_set_column in result_type_metadata_sets.iteritems():
+                # Get result type and metadata
+
+                if isinstance(result_type_metadata_set_column, pd.Series):
+                    result_type = result_type_metadata_set_column[0]
+                    metadata = result_type_metadata_set_column[1:]
+                else:
+                    result_type = result_type_metadata_set_column
+                    metadata = pd.Series(name=column_idx)
+
+                metadata = frozenset(
+                    (metadata_type, metadata_value)
+                    for metadata_type, metadata_value in zip(metadata_types, metadata)
+                    if not pd.isna(metadata_value)
+                )
+
+                result_value = self._df.loc[row_idx, column_idx]
+
+                if pd.isna(result_value):
+                    result_value = None
+
+                yield Result(tuple(subsample), result_type, metadata, result_value)
+
+    def _load(self):
+        self._df = pd.read_excel(self.workbook.path, sheet_name=self.name, header=None, keep_default_na=False)
+
+        self._df = self._df.astype(str)                    # Cast to string
+        self._df = self._df.applymap(lambda x: x.strip())  # Strip whitespace
+        self._df = self._df.replace('', np.nan)            # Replace empty strings with NaN
+
+        # Drop all empty rows from the end of the dataframe
+        last_non_empty_row_idx = self._df.notna().any(axis=1).drop_duplicates(keep='last').index[0]
+        self._df = self._df.loc[:last_non_empty_row_idx]
+
+        # Drop all empty columns from the end of the dataframe
+        last_non_empty_column_idx = self._df.notna().any(axis=0).drop_duplicates(keep='last').index[0]
+        self._df = self._df.loc[:, :last_non_empty_column_idx]
+
+    def _parse(self):
         self._geometry = {
             'subsamples': {},
             'metadata_types': {},
-            'result_types': {},
+            'result_type_metadata_sets': {},
         }
 
-        self._geometry['subsamples']['columns'] = self._get_geometry_subsamples_columns_slice()
-        self._geometry['metadata_types']['column'] = self._get_geometry_metadata_types_column()
-        self._geometry['result_types']['columns'] = self._get_geometry_result_types_columns_slice()
-        self._geometry['metadata_types']['rows'] = self._get_geometry_metadata_types_rows_slice()
-        self._geometry['subsamples']['rows'] = self._get_geometry_subsamples_rows_slice()
+        self._parse_01_subsamples()
+        self._parse_02_metadata_types()
+        self._parse_03_result_type_metadata_sets()
 
-    def _get_geometry_subsamples_columns_slice(self):
-        # The subsample columns are minimally the first two columns with
-        # specific headings. Additional columns have headings prepended with
-        # "SUB" again and again.
-
+    def _parse_01_subsamples(self):
         first_row = self._df.iloc[0]
 
+        # ERROR if mandatory headings missing
+
         if first_row[0] != 'SAMPLE':
-            raise IntegrityError('Cell must be "SAMPLE"', workbook=self._workbook.path.name, worksheet=self._sheet_name, cell="A1")
+            raise IntegrityError('Cell A1 must be "SAMPLE"', workbook=self.workbook.path.name, worksheet=self.name)
 
-        if first_row[1] != 'SUBSAMPLE':
-            raise IntegrityError('Cell must be "SUBSAMPLE"', workbook=self._workbook.path.name, worksheet=self._sheet_name, cell="B1")
+        if len(first_row) < 2 or first_row[1] != 'SUBSAMPLE':
+            raise IntegrityError('Cell B1 must be "SUBSAMPLE"', workbook=self.workbook.path.name, worksheet=self.name)
 
-        columns_stop = 2
+        # COMPUTE COLUMNS GEOMETRY
 
-        for column, heading in first_row.iloc[2:].items():
-            expected_heading = 'SUB' + first_row[column - 1]
+        # Find additional subsample columns
 
-            if heading != expected_heading:
+        subsample_columns_idx_stop = 2
+
+        for column_idx, heading in first_row.iloc[subsample_columns_idx_stop:].items():
+            expected_subsample_heading = 'SUB' + first_row[column_idx - 1]
+
+            if heading != expected_subsample_heading:
                 break
 
-            columns_stop = columns_stop + 1
+            subsample_columns_idx_stop += 1
 
-        return slice(0, columns_stop)
+        self._geometry['subsamples']['columns'] = slice(0, subsample_columns_idx_stop)
 
-    def _get_geometry_metadata_types_column(self):
-        assert 'subsamples' in self._geometry and 'columns' in self._geometry['subsamples']
+        # COMPUTE ROWS GEOMETRY
 
-        # The metadata types column is expected to be the column following the
-        # last subsample column.
+        # Find first subsample row with a non-null value
+        rows_start_idx = self._df.iloc[1:, self._geometry['subsamples']['columns']]. \
+            notna(). \
+            any(axis=1). \
+            replace(False, np.nan). \
+            first_valid_index()
 
-        metadata_types_column = self._geometry['subsamples']['columns'].stop
+        rows_stop_idx = self._df.index[-1] + 1
 
-        if metadata_types_column not in self._df.columns or self._df.iloc[0, metadata_types_column] != 'METADATA_TYPE':
-            raise IntegrityError('Cell must be "METADATA_TYPE"', workbook=self._workbook.path.name, worksheet=self._sheet_name, cell=xlref(0, metadata_types_column))
+        self._geometry['subsamples']['rows'] = (
+            slice(rows_start_idx, self._df.index[-1] + 1)  # From 1st subsample row (one with any non-null value) to last row of entire worksheet (one with any non-null value)
+            if rows_start_idx else
+            slice(rows_stop_idx, rows_stop_idx)  # Empty slice that doesn't overlap any metadata type rows
+        )
 
-        return metadata_types_column
+        # VALIDATE ROWS
 
-    def _get_geometry_result_types_columns_slice(self):
-        assert 'metadata_types' in self._geometry and 'column' in self._geometry['metadata_types']
+        sample_names = [str(x.name).strip() for x in iter(self.workbook.dataset.samples)]  # Used to check if SAMPLE names used actually exist
+        rows = self._df.iloc[self._geometry['subsamples']['rows'], self._geometry['subsamples']['columns']]
 
-        # The result type columns are all columns following the metdata types
-        # column.
+        for row_idx, row in rows.iterrows():
+            # ERROR if missing values for subsample
 
-        columns_start = self._geometry['metadata_types']['column'] + 1
-        columns_stop = len(self._df.iloc[0])
+            if row.isnull().any():
+                row_xl_idx = xlrowref(row_idx)
+                raise IntegrityError(f'Missing value(s) for subsample on row {row_xl_idx}', workbook=self.workbook.path.name, worksheet=self.name)
 
-        return slice(columns_start, columns_stop)
+            # ERROR if subsample is a duplicate
 
-    def _get_geometry_metadata_types_rows_slice(self):
-        assert 'metadata_types' in self._geometry and 'column' in self._geometry['metadata_types']
+            duplicate_of_row_idx = None
+            previous_rows = rows.loc[:row_idx-1]
 
-        # The metadata type rows fall between the heading row and the first
-        # subsample row.
+            for previous_row_idx, previous_row in previous_rows.iterrows():
+                if tuple(row) == tuple(previous_row):
+                    duplicate_of_row_idx = previous_row_idx
+                    break
 
-        s = self._df.iloc[1:, self._geometry['metadata_types']['column']]
-        key = s.notnull()
-        rows_stop = 1 if s[key].empty else (s[key].index[-1] + 1)
+            if duplicate_of_row_idx:
+                row_xl_idx = xlrowref(row_idx)
+                duplicate_of_row_xl_idx = xlrowref(duplicate_of_row_idx)
+                raise IntegrityError(f'Subsample on row {row_xl_idx} is a duplicate of subsample on row {duplicate_of_row_xl_idx}', workbook=self.workbook.path.name, worksheet=self.name)
 
-        return slice(1, rows_stop)
+            sample_name = row[0]
 
-    def _get_geometry_subsamples_rows_slice(self):
-        assert 'metadata_types' in self._geometry and 'rows' in self._geometry['metadata_types']
+            if sample_name not in sample_names:
+                row_xl_idx = xlrowref(row_idx)
+                raise IntegrityError(f'Sample value "{sample_name}" of subsample on row {row_xl_idx} does not exist in "SAMPLES.xlsx"', workbook=self.workbook.path.name, worksheet=self.name)
 
-        # The subsample rows begin with the row following the last metadata type
-        # and end with the last row of the table.
+    def _parse_02_metadata_types(self):
+        # SAVE GEOMETRY (depends entirely on subsamples geometry)
 
-        rows_start = self._geometry['metadata_types']['rows'].stop
+        self._geometry['metadata_types']['column'] = self._geometry['subsamples']['columns'].stop
+        self._geometry['metadata_types']['rows'] = slice(1, self._geometry['subsamples']['rows'].start)
 
-        return slice(rows_start, len(self._df))
+        # GET metadata type column (including heading) (if one exists)
 
-    def _validate_dataframe(self):
-        self._validate_subsamples()
-        self._validate_metadata_types()
-        self._validate_result_types()
-        self._validate_empty_regions()
+        column = (
+            self._df.iloc[:, self._geometry['metadata_types']['column']]
+            if self._geometry['metadata_types']['column'] in self._df.columns
+            else None
+        )
 
-    def _validate_subsamples(self):
-        subsamples_df = self._df.iloc[self._geometry['subsamples']['rows'], self._geometry['subsamples']['columns']]
-        samples = [str(x.name).strip() for x in iter(self._workbook.dataset.samples)]
+        # ERROR if mandatory heading is missing
 
-        for row_idx, subsample_s in subsamples_df.iterrows():
-            # Check if any subsample fields are not given
+        if column is None or column[0] != 'METADATA_TYPE':
+            cell_xl_idx = xlref(0, self._geometry['metadata_types']['column'])
+            raise IntegrityError(f'Cell {cell_xl_idx} must be "METADATA_TYPE"', workbook=self.workbook.path.name, worksheet=self.name)
 
-            if subsample_s.isna().any():
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                row = xlrowref(row_idx)
-                raise IntegrityError(f'Missing value(s) for subsample in row {row} of worksheet {self._workbook.path.name}::{self._sheet_name}')
+        # VALIDATE metadata types falling in geometry
 
-            # Check if SAMPLE field does not exist in samples file
+        rows = column[self._geometry['metadata_types']['rows']]
 
-            sample = str(subsample_s[0]).strip()
-
-            if sample not in samples:
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                cell = xlref(row_idx, 0)
-                raise IntegrityError(f'Sample in cell {cell} of worksheet {worksheet} does not exist')
-
-            # Check if subsample is a duplicate
-
-            previous_subsamples_df = self._df.iloc[self._geometry['subsamples']['rows'].start:row_idx, self._geometry['subsamples']['columns']]
-            previous_subsamples = [tuple(x) for x in previous_subsamples_df.to_numpy()]
-
-            if tuple(subsample_s) in previous_subsamples:
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                row = xlrowref(row_idx)
-                raise IntegrityError(f'Subsample in row {row} of worksheet {worksheet} is a duplicate')
-
-    def _validate_metadata_types(self):
-        metadata_types = self._df.iloc[self._geometry['metadata_types']['rows'], self._geometry['metadata_types']['column']]
-
-        for row_idx, metadata_type in metadata_types.items():
-            # Check if metadata type is not given
+        for row_idx, metadata_type in rows.iteritems():
+            # ERROR if a metadata type was not given
 
             if metadata_type is None:
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                cell = xlref(row_idx, self._geometry['metadata_types']['column'])
-                raise IntegrityError(f'Metadata type is missing in cell {cell} of worksheet {worksheet}')
+                row_xl_idx = xlrowref(row_idx)
+                raise IntegrityError(f'Metadata type missing from row {row_xl_idx}', workbook=self.workbook.path.name, worksheet=self.name)
 
-            # Check if metadata type is a duplicate
+            # ERROR if metadata type is a duplicate of a previous one
 
-            previous_metadata_types = self._df.iloc[self._geometry['metadata_types']['rows'].start:row_idx, self._geometry['metadata_types']['column']]
+            duplicate_of_row_idx = None
+            previous_rows = rows.loc[:row_idx-1]
 
-            if metadata_type in tuple(previous_metadata_types):
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                cell = xlref(row_idx, self._geometry['metadata_types']['column'])
-                raise IntegrityError(f'Metadata type in cell {cell} of worksheet {worksheet} is a duplicate')
+            for previous_row_idx, previous_metadata_type in previous_rows.iteritems():
+                if metadata_type == previous_metadata_type:
+                    duplicate_of_row_idx = previous_row_idx
+                    break
 
-    def _validate_result_types(self):
-        result_types_column_idx_slice = self._geometry['result_types']['columns']
-        metadata_types_row_idx_slice = self._geometry['metadata_types']['rows']
+            if duplicate_of_row_idx:
+                row_xl_idx = xlrowref(row_idx)
+                duplicate_of_row_xl_idx = xlrowref(duplicate_of_row_idx)
+                raise IntegrityError(f'Metadata type on row {row_xl_idx} is a duplicate of metadata type on row {duplicate_of_row_xl_idx}', workbook=self.workbook.path.name, worksheet=self.name)
 
-        result_type_metadata_df = self._df.iloc[:metadata_types_row_idx_slice.stop, result_types_column_idx_slice]
+        # ERROR if any cells below last metadata type are not empty
 
-        for col_idx, result_type_metadata_s in result_type_metadata_df.items():
-            # Check if result type is not given
+        rows = column[self._geometry['metadata_types']['rows'].stop:]
+        rows = rows[rows.notnull()]
 
-            if result_type_metadata_s[0] is None:
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                cell = xlref(0, col_idx)
-                raise IntegrityError(f'Result type in cell {cell} of worksheet {worksheet} is missing')
+        if len(rows) > 0:
+            cell_xl_idx = xlref(rows.index[0], self._geometry['metadata_types']['column'])
+            raise IntegrityError(f'Metadata type in cell {cell_xl_idx} cannot be given because a subsample exists on the same row', workbook=self.workbook.path.name, worksheet=self.name)
 
-            # Check if result type / metadata pair is a duplicate
+    def _parse_03_result_type_metadata_sets(self):
+        # Save expected geometry (depends on metadata types geometry)
 
-            if result_type_metadata_s.values.tolist() in result_type_metadata_df.loc[:, :col_idx-1].transpose().values.tolist():
-                worksheet = f'{self._workbook.path.name}::{self._sheet_name}'
-                column = xlcolref(col_idx)
-                raise IntegrityError(f'Result type-metadata pair in column {column} of worksheet {worksheet} is a duplicate')
+        self._geometry['result_type_metadata_sets']['rows'] = slice(0, self._geometry['metadata_types']['rows'].stop)
+        self._geometry['result_type_metadata_sets']['columns'] = slice(self._geometry['metadata_types']['column'] + 1, len(self._df.columns))
 
-    def _validate_empty_regions(self):
-        # Region above subsamples and left of metadata types
+        # Validate dataframe of result type/metdata sets
 
-        df_sub = self._df.iloc[self._geometry['metadata_types']['rows'], self._geometry['subsamples']['columns']]
+        df = self._df.iloc[self._geometry['result_type_metadata_sets']['rows'], self._geometry['result_type_metadata_sets']['columns']]
 
-        if not df_sub.isna().all().all():
-            raise IntegrityError(f"Region left of metadata types is not empty", workbook=self._workbook.path.name, worksheet=self._sheet_name)
+        for column_idx, column in df.iteritems():
+            # EXTRACT result type and metadata from column
 
-    def __iter__(self):
-        subsamples_df = self._df.iloc[self._geometry['subsamples']['rows'], self._geometry['subsamples']['columns']]
-        subsamples = list(tuple(x) for x in subsamples_df.values)
+            if isinstance(column, pd.Series):
+                result_type = column[0]
+                metadata = tuple(column[1:])
+            else:
+                result_type = column
+                metadata = tuple()
 
-        metadata_types = list(self._df.iloc[self._geometry['metadata_types']['rows'], self._geometry['metadata_types']['column']])
+            # ERROR if result type not given
 
-        result_types_s = self._df.iloc[0, self._geometry['result_types']['columns']]
-        result_types = list(result_types_s.values)
+            if len(result_type) == 0:
+                column_xl_idx = xlcolref(column_idx)
+                raise IntegrityError(f'Result type is missing on column {column_xl_idx}', workbook=self.workbook.path.name, worksheet=self.name)
 
-        metadata_values_lists_df = self._df.iloc[self._geometry['metadata_types']['rows'], self._geometry['result_types']['columns']]
-        metadata_value_lists = list(tuple(x) for x in metadata_values_lists_df.transpose().values)
+            # ERROR if duplicate result type/metadata set
 
-        results_df = self._df.iloc[self._geometry['subsamples']['rows'], self._geometry['result_types']['columns']]
-        results = list(list(x) for x in results_df.values)
+            duplicate_of_column_idx = None
+            previous_df = df.loc[0, :column_idx-1]
 
-        for y, subsample in enumerate(subsamples):
-            sample_col = self._workbook.dataset.samples.get_by_name(str(subsample[0]).strip())
-            subsample_cols = tuple(str(x).strip() for x in subsample[1:])
+            for previous_column_idx, previous_column in previous_df.iteritems():
+                if isinstance(previous_column, pd.Series):
+                    previous_result_type = previous_column[0]
+                    previous_metadata = tuple(previous_column[1:])
+                else:
+                    previous_result_type = previous_column
+                    previous_metadata = tuple()
 
-            for x, result_type in enumerate(result_types):
-                metadata = zip(metadata_types, metadata_value_lists[x])
-                metadata = frozenset((t, str(v)) for t, v in metadata if v is not None)
+                if result_type == previous_result_type and metadata == previous_metadata:
+                    duplicate_of_column_idx = previous_column_idx
+                    break
 
-                result_value = str(results[y][x])
-
-                yield Result(sample_col, subsample_cols, result_type, metadata, result_value)
+            if duplicate_of_column_idx:
+                column_xl_idx = xlcolref(column_idx)
+                duplicate_of_column_xl_idx = xlcolref(duplicate_of_column_idx)
+                raise IntegrityError(f'Result type/metadata set on column {column_xl_idx} is a duplicate of one on column {duplicate_of_column_xl_idx}', workbook=self.workbook.path.name, worksheet=self.name)

@@ -4,7 +4,7 @@ import sqlite3
 from geochem_dataset.sqlite import DatasetsDatabase
 import pytest
 
-from helpers.utils import dict_without
+from tests.helpers.utils import dict_without
 from .sample_data import (
     DATASET_COLUMNS, DATASETS,
     DOCUMENT_COLUMNS, DOCUMENTS,

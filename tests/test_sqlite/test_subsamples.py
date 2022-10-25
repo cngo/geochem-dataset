@@ -1,6 +1,7 @@
 import pytest
 
-from helpers.utils import delete_mods, set_value_mods, set_none_mods, dict_without, modified_dict
+from tests.helpers.utils import delete_mods, set_value_mods, set_none_mods, dict_without, modified_dict
+
 from .sample_data import (
     DATASET_COLUMNS, DATASETS,
     SURVEY_COLUMNS, SURVEYS,

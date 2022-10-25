@@ -36,10 +36,10 @@ class DatasetsDatabase:
         else:
             pass  # self._validate()
 
-        self._attach_interfaces()
+        self.attach_interfaces()
 
     def close(self):
-        self._detach_interfaces()
+        self.detach_interfaces()
         self._db.close()
 
     def _init(self):
@@ -83,11 +83,11 @@ class DatasetsDatabase:
     #     cur.close()
     #     return schema
 
-    def _attach_interfaces(self):
+    def attach_interfaces(self):
         self.config = interfaces.Config()
         self.datasets = interfaces.Datasets()
 
-    def _detach_interfaces(self):
+    def detach_interfaces(self):
         del self.config
         del self.datasets
 

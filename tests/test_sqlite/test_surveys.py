@@ -1,7 +1,10 @@
 from geochem_dataset.sqlite.models import Dataset
 import pytest
 
-from helpers.utils import DeleteField, kwargs_without_id, modified_kwargs
+from tests.helpers.utils import DeleteField
+from tests.helpers.utils import kwargs_without_id
+from tests.helpers.utils import modified_kwargs
+
 from .sample_data import (
     DATASET_COLUMNS, DATASETS,
     SURVEY_COLUMNS, SURVEYS

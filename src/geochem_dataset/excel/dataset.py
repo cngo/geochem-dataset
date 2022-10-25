@@ -46,7 +46,7 @@ class Dataset:
         self.samples = SamplesInterface(self)
 
         try:
-            self.analysis_bulk_results = AnalysisBulkInterface(self)
+            self.bulk = AnalysisBulkInterface(self)
         except FileNotFoundError:
             pass
 
@@ -56,6 +56,6 @@ class Dataset:
         delattr(self, 'samples')
 
         try:
-            delattr(self, 'analysis_bulk_results')
+            delattr(self, 'bulk')
         except AttributeError:
             pass

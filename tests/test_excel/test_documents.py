@@ -9,7 +9,7 @@ from geochem_dataset.excel import Dataset
 from geochem_dataset.excel.dataclasses import Document
 from geochem_dataset.excel.exceptions import IntegrityError
 
-from helpers.utils import xlref, xlrowref, xlcolref
+from tests.test_excel.helpers.utils import xlref, xlrowref, xlcolref
 
 TEST_FILE_NAME = 'DOCUMENT.xlsx'
 TEST_SHEET_NAME = 'DOCUMENT'

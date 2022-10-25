@@ -196,26 +196,26 @@ class MetadataTypes(SimpleForeignKeyInterface):
 
 class Metadata:
     __model__ = models.Metadata
-    __fk_field__ = models.Metadata.set_id
+    __fk_field__ = models.Metadata.metadata_set_id
     __serializer__ = serializers.Metadata
 
-    def __init__(self, set_id):
-        self.set_id = set_id
+    def __init__(self, metadata_set_id):
+        self.metadata_set_id = metadata_set_id
 
     def __iter__(self):
         q = models.Result.select(). \
             join(models.Metadata). \
-            where(models.Metadata.set_id == self.set_id)
+            where(models.Metadata.metadata_set_id == self.metadata_set_id)
 
         for row in q.iterator():
             yield serializers.Metadata.from_row(row)
 
     def create(self, **kwargs):
-        for field in ('id', 'set_id'):
+        for field in ('id', 'metadata_set_id'):
             if field in kwargs and kwargs[field] is not None:
                 raise TypeError(f"`{field}` must be `None` when creating")
 
-        kwargs['set_id'] = self.set_id
+        kwargs['metadata_set_id'] = self.metadata_set_id
 
         self.__serializer__(**kwargs)  # validate
         m = self.__model__(**kwargs)

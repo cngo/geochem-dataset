@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import FrozenSet, Tuple
+
+Extra = FrozenSet[Tuple[str, str]]
 
 
 @dataclass(frozen=True)
 class Document:
     recommended_citation: str
-
-    extra: frozenset[tuple[str, str], ...] = field(default_factory=frozenset)  # key-value pairs
+    extra: Extra = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -17,8 +21,7 @@ class Survey:
     party_leader: str
     description: str
     gsc_catalog_number: int
-
-    extra: frozenset[tuple[str, str], ...] = field(default_factory=frozenset)  # key-value pairs
+    extra: Extra = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -38,14 +41,16 @@ class Sample:
     zone: str
     earthmat_type: str
     status: str
+    extra: Extra = field(default_factory=frozenset)
 
-    extra: frozenset[tuple[str, str], ...] = field(default_factory=frozenset)  # key-value pairs
+
+ResultSubsample = Tuple[str, ...]
+ResultMetadata = FrozenSet[Tuple[str, str]]
 
 
 @dataclass(frozen=True)
 class Result:
-    sample: Sample
-    subsample: tuple[str, ...]
+    subsample: ResultSubsample
     type: str
-    metadata: frozenset[tuple[str, str], ...]  # key-value pairs
+    metadata: ResultMetadata
     value: str

@@ -9,7 +9,7 @@ from geochem_dataset.excel import Dataset
 from geochem_dataset.excel.dataclasses import Sample, Survey
 from geochem_dataset.excel.exceptions import IntegrityError
 
-from helpers.utils import xlref, xlrowref, xlcolref
+from tests.test_excel.helpers.utils import xlref, xlrowref, xlcolref
 
 SURVEYS = [
     Survey('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', 'Canada-Nunavut Geoscience Office', 2011, 2013, 'Tremblay, Tommy', 'A test description', 1000),
