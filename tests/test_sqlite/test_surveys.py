@@ -1,54 +1,55 @@
-from geochem_dataset.sqlite.models import Dataset
 import pytest
 
-from tests.helpers.utils import DeleteField
-from tests.helpers.utils import kwargs_without_id
-from tests.helpers.utils import modified_kwargs
+from tests.helpers.utils import (
+    DICT_MOD_SET, DICT_MOD_DELETE,
+    DictMod, set_mods, set_none_mods, delete_mods,
+    modified_dict, dict_without
+)
 
 from .sample_data import (
     DATASET_COLUMNS, DATASETS,
     SURVEY_COLUMNS, SURVEYS
 )
 
-DELETE_ID_FIELD = ('id', DeleteField)
-
 
 class TestCreate:
     VALID_FIELD_DATA = {
-        'id__not_given': [DELETE_ID_FIELD],
-        'id__NoneType':  [('id', None)],
+        'id__not_given': delete_mods('id'),
+        'id__NoneType':  set_none_mods('id'),
 
-        'dataset_id__not_given': [DELETE_ID_FIELD, ('dataset_id', DeleteField)],
-        'dataset_id__NoneType':  [DELETE_ID_FIELD, ('dataset_id', None)],
+        'dataset_id__not_given': delete_mods('id', 'dataset_id'),
+        'dataset_id__NoneType':  delete_mods('id') + set_none_mods('dataset_id'),
 
-        'year_end__not_given': [DELETE_ID_FIELD, ('year_end', DeleteField)],
-        'year_end__NoneType':  [DELETE_ID_FIELD, ('year_end', None)],
+        'year_end__not_given': delete_mods('id', 'year_end'),
+        'year_end__NoneType':  delete_mods('id') + set_none_mods('year_end'),
 
-        'party_leader__not_given': [DELETE_ID_FIELD, ('party_leader', DeleteField)],
-        'party_leader__NoneType':  [DELETE_ID_FIELD, ('party_leader', None)],
-        'party_leader__empty':     [DELETE_ID_FIELD, ('party_leader', '')],
+        'party_leader__not_given': delete_mods('id', 'party_leader'),
+        'party_leader__NoneType':  delete_mods('id') + set_none_mods('party_leader'),
+        'party_leader__empty':     delete_mods('id') + [DictMod('party_leader', DICT_MOD_SET, '')],
 
-        'description__not_given': [DELETE_ID_FIELD, ('description', DeleteField)],
-        'description__NoneType':  [DELETE_ID_FIELD, ('description', None)],
-        'description__empty':     [DELETE_ID_FIELD, ('description', '')],
+        'description__not_given': delete_mods('id', 'description'),
+        'description__NoneType':  delete_mods('id') + set_none_mods('description'),
+        'description__empty':     delete_mods('id') + set_mods('description', value=''),
 
-        'gsc_catalog_number__not_given': [DELETE_ID_FIELD, ('gsc_catalog_number', DeleteField)],
-        'gsc_catalog_number__NoneType':  [DELETE_ID_FIELD, ('gsc_catalog_number', None)],
+        'gsc_catalog_number__not_given': delete_mods('id', 'gsc_catalog_number'),
+        'gsc_catalog_number__NoneType':  delete_mods('id') + set_none_mods('gsc_catalog_number'),
 
-        'extra__not_given': [DELETE_ID_FIELD, ('extra', DeleteField)],
-        'extra__NoneType':  [DELETE_ID_FIELD, ('extra', None)],
+        'extra__not_given': delete_mods('id', 'extra'),
+        'extra__NoneType':  delete_mods('id') + set_none_mods('extra'),
     }
 
     @pytest.mark.parametrize('modifications', VALID_FIELD_DATA.values(), ids=VALID_FIELD_DATA.keys())
-    def test_valid(self, initialized_db, modifications):
+    def test_valid(self, empty_db, modifications):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = modified_kwargs(dataset_kwargs, [DELETE_ID_FIELD])
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = modified_dict(dataset_kwargs, delete_mods('id'))
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         # Create a survey
         survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
-        survey_mod_kwargs = modified_kwargs(survey_kwargs, modifications)
+        survey_mod_kwargs = modified_dict(survey_kwargs, modifications)
         survey = dataset.surveys.create(**survey_mod_kwargs)
 
         # Assert
@@ -64,49 +65,51 @@ class TestCreate:
         assert survey.extra == survey_mod_kwargs.get('extra', None)
 
     INVALID_FIELD_DATA = {
-        'id__given': ([('id', 99)], ValueError),
+        'id__given': ([('id', DICT_MOD_SET, 99)], ValueError),
 
-        'dataset_id__given': ([('dataset_id', 99)], ValueError),
+        'dataset_id__given': ([DictMod('dataset_id', DICT_MOD_SET, 99)], ValueError),
 
-        'title__not_given':            ([DELETE_ID_FIELD, ('title', DeleteField)], TypeError),
-        'title__wrong_type__NoneType': ([DELETE_ID_FIELD, ('title', None)], TypeError),
-        'title__wrong_type__int':      ([DELETE_ID_FIELD, ('title', 99)], TypeError),
-        'title__wrong_value__empty':   ([DELETE_ID_FIELD, ('title', '')], ValueError),
+        'title__not_given':            (delete_mods('id', 'title'), TypeError),
+        'title__wrong_type__NoneType': (delete_mods('id') + set_none_mods('title'), TypeError),
+        'title__wrong_type__int':      (delete_mods('id') + [DictMod('title', DICT_MOD_SET, 99)], TypeError),
+        'title__wrong_value__empty':   (delete_mods('id') + [DictMod('title', DICT_MOD_SET, '')], ValueError),
 
-        'organization__not_given':            ([DELETE_ID_FIELD, ('organization', DeleteField)], TypeError),
-        'organization__wrong_type__NoneType': ([DELETE_ID_FIELD, ('organization', None)], TypeError),
-        'organization__wrong_type__int':      ([DELETE_ID_FIELD, ('organization', 99)], TypeError),
-        'organization__wrong_value__empty':   ([DELETE_ID_FIELD, ('organization', '')], ValueError),
+        'organization__not_given':            (delete_mods('id', 'organization'), TypeError),
+        'organization__wrong_type__NoneType': (delete_mods('id') + set_none_mods('organization'), TypeError),
+        'organization__wrong_type__int':      (delete_mods('id') + [DictMod('organization', DICT_MOD_SET, 99)], TypeError),
+        'organization__wrong_value__empty':   (delete_mods('id') + [DictMod('organization', DICT_MOD_SET, '')], ValueError),
 
-        'year_begin__not_given':            ([DELETE_ID_FIELD, ('year_begin', DeleteField)], TypeError),
-        'year_begin__wrong_type__NoneType': ([DELETE_ID_FIELD, ('year_begin', None)], TypeError),
-        'year_begin__wrong_type__str':      ([DELETE_ID_FIELD, ('year_begin', 'Skittles')], TypeError),
+        'year_begin__not_given':            (delete_mods('id', 'year_begin'), TypeError),
+        'year_begin__wrong_type__NoneType': (delete_mods('id') + set_none_mods('year_begin'), TypeError),
+        'year_begin__wrong_type__str':      (delete_mods('id') + [DictMod('year_begin', DICT_MOD_SET, 'Skittles')], TypeError),
 
-        'year_end__wrong_type__str':         ([DELETE_ID_FIELD, ('year_end', 'Skittles')], TypeError),
-        'year_end__earlier_than_year_begin': ([DELETE_ID_FIELD, ('year_begin', 2021), ('year_end', 1999)], ValueError),
+        'year_end__wrong_type__str':         (delete_mods('id') + [DictMod('year_end', DICT_MOD_SET, 'Skittles')], TypeError),
+        'year_end__earlier_than_year_begin': (delete_mods('id') + [DictMod('year_begin', DICT_MOD_SET, 2021), DictMod('year_end', DICT_MOD_SET, 1999)], ValueError),
 
-        'party_leader__wrong_type__int': ([DELETE_ID_FIELD, ('party_leader', 99)], TypeError),
+        'party_leader__wrong_type__int': (delete_mods('id') + [DictMod('party_leader', DICT_MOD_SET, 99)], TypeError),
 
-        'description__wrong_type__int': ([DELETE_ID_FIELD, ('description', 99)], TypeError),
+        'description__wrong_type__int': (delete_mods('id') + [DictMod('description', DICT_MOD_SET, 99)], TypeError),
 
-        'gsc_catalog_number__wrong_type__str': ([DELETE_ID_FIELD, ('gsc_catalog_number', 'Skittles')], TypeError),
+        'gsc_catalog_number__wrong_type__str': (delete_mods('id') + [DictMod('gsc_catalog_number', DICT_MOD_SET, 'Skittles')], TypeError),
 
-        'extra__wrong_type__str':            ([DELETE_ID_FIELD, ('extra', 'Skittles')], TypeError),
-        'extra__wrong_type__int':            ([DELETE_ID_FIELD, ('extra', 99)], TypeError),
-        'extra__wrong_item_key_type__int':   ([DELETE_ID_FIELD, ('extra', {844: 'Skittles', 'two_cat': 'Duchess'})], TypeError),
-        'extra__wrong_item_value_type__int': ([DELETE_ID_FIELD, ('extra', {'one_cat': 844, 'two_cat': 'Duchess'})],  TypeError),
+        'extra__wrong_type__str':            (delete_mods('id') + [DictMod('extra', DICT_MOD_SET, 'Skittles')], TypeError),
+        'extra__wrong_type__int':            (delete_mods('id') + [DictMod('extra', DICT_MOD_SET, 99)], TypeError),
+        'extra__wrong_item_key_type__int':   (delete_mods('id') + [DictMod('extra', DICT_MOD_SET, {844: 'Skittles', 'two_cat': 'Duchess'})], TypeError),
+        'extra__wrong_item_value_type__int': (delete_mods('id') + [DictMod('extra', DICT_MOD_SET, {'one_cat': 844, 'two_cat': 'Duchess'})],  TypeError),
     }
 
     @pytest.mark.parametrize('modifications, expected_exc', INVALID_FIELD_DATA.values(), ids=INVALID_FIELD_DATA.keys())
-    def test_invalid(self, initialized_db, modifications, expected_exc):
+    def test_invalid(self, empty_db, modifications, expected_exc):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = modified_kwargs(dataset_kwargs, [DELETE_ID_FIELD])
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = modified_dict(dataset_kwargs, delete_mods('id'))
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         # Create a survey
         survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
-        survey_mod_kwargs = modified_kwargs(survey_kwargs, modifications)
+        survey_mod_kwargs = modified_dict(survey_kwargs, modifications)
 
         with pytest.raises(expected_exc):
             dataset.surveys.create(**survey_mod_kwargs)
@@ -115,7 +118,7 @@ class TestCreate:
         dataset = populated_db.datasets.get_by_id(1)
 
         kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
-        mod_kwargs = kwargs_without_id(kwargs)
+        mod_kwargs = modified_dict(kwargs, delete_mods('id'))
 
         with pytest.raises(ValueError):
             dataset.surveys.create(**mod_kwargs)
@@ -146,20 +149,24 @@ class TestGetByID:
     }
 
     @pytest.mark.parametrize('id', list(INVALID_ID_DATA.values()), ids=list(INVALID_ID_DATA.keys()))
-    def test_invalid(self, initialized_db, id):
+    def test_invalid(self, empty_db, id):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = kwargs_without_id(dataset_kwargs)
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         with pytest.raises(TypeError) as excinfo:
             dataset.surveys.get_by_id(id)
 
-    def test_non_existant(self, initialized_db):
+    def test_non_existant(self, empty_db):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = kwargs_without_id(dataset_kwargs)
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         survey = dataset.surveys.get_by_id(99)
 
@@ -191,31 +198,37 @@ class TestGetByTitle:
     }
 
     @pytest.mark.parametrize('title', list(INVALID_TITLE_DATA.values()), ids=list(INVALID_TITLE_DATA.keys()))
-    def test_invalid(self, initialized_db, title):
+    def test_invalid(self, empty_db, title):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = kwargs_without_id(dataset_kwargs)
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         with pytest.raises(TypeError) as excinfo:
             dataset.surveys.get_by_title(title)
 
-    def test_non_existant(self, initialized_db):
+    def test_non_existant(self, empty_db):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = kwargs_without_id(dataset_kwargs)
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         survey = dataset.surveys.get_by_title('Skittles')
         assert survey is None
 
 
 class TestIter:
-    def test_with_no_surveys(self, initialized_db):
+    def test_with_no_surveys(self, empty_db):
+        db = empty_db
+
         # Create a dataset
         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-        dataset_mod_kwargs = kwargs_without_id(dataset_kwargs)
-        dataset = initialized_db.datasets.create(**dataset_mod_kwargs)
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
         surveys = list(dataset.surveys)
 

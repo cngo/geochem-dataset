@@ -15,11 +15,11 @@ class BasicWorksheetData(WorksheetData):
     def to_dataframe(self) -> pd.DataFrame:
         df = pd.DataFrame()
 
-        df = df.append(pd.Series(self.Meta.headings), ignore_index=True)
+        df = df.concat(pd.Series(self.Meta.headings), ignore_index=True)
 
         for row in self.data[self.Meta.rows_key_name]:
             row = pd.Series(row)
-            df = df.append(row, ignore_index=True)
+            df = df.concat(row, ignore_index=True)
 
         return df
 
@@ -89,7 +89,7 @@ class AnalysisWorksheetData(WorksheetData):
         row += ('METADATA_TYPE',)
         row += tuple(result_type for result_type, _ in self.data['result_type_metadata_sets'])
 
-        df = df.append(pd.Series(row), ignore_index=True)
+        df = df.concat(pd.Series(row), ignore_index=True)
 
         # Metadata rows
 
@@ -107,13 +107,13 @@ class AnalysisWorksheetData(WorksheetData):
                 for _, metadata in self.data['result_type_metadata_sets']
             )
 
-            df = df.append(pd.Series(row), ignore_index=True)
+            df = df.concat(pd.Series(row), ignore_index=True)
 
         # Subsample/result rows
 
         for subsample, results in self.data['subsample_results_sets']:
             row = subsample + ('',) + results
-            df = df.append(pd.Series(row), ignore_index=True)
+            df = df.concat(pd.Series(row), ignore_index=True)
 
         return df
 

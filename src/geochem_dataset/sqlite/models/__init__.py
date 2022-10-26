@@ -1,7 +1,7 @@
 from peewee import Check
 from playhouse.sqlite_ext import (
     DatabaseProxy, Model,
-    CharField, FloatField, ForeignKeyField, IntegerField, JSONField
+    CharField, DecimalField, ForeignKeyField, IntegerField, JSONField
 )
 
 database_proxy = DatabaseProxy()
@@ -66,14 +66,14 @@ class Sample(BaseModel):
     station       = CharField()
     earthmat      = CharField()
     name          = CharField()
-    lat_nad27     = FloatField(null=True)
-    long_nad27    = FloatField(null=True)
-    lat_nad83     = FloatField(null=True)
-    long_nad83    = FloatField(null=True)
-    x_nad27       = FloatField(null=True)
-    y_nad27       = FloatField(null=True)
-    x_nad83       = FloatField(null=True)
-    y_nad83       = FloatField(null=True)
+    lat_nad27     = DecimalField(null=True)
+    long_nad27    = DecimalField(null=True)
+    lat_nad83     = DecimalField(null=True)
+    long_nad83    = DecimalField(null=True)
+    x_nad27       = DecimalField(null=True)
+    y_nad27       = DecimalField(null=True)
+    x_nad83       = DecimalField(null=True)
+    y_nad83       = DecimalField(null=True)
     zone          = CharField()
     earthmat_type = CharField()
     status        = CharField()

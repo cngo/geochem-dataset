@@ -1,81 +1,92 @@
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple
+from typing import Any, Dict, List, Literal, NamedTuple
+
+from openpyxl.utils import get_column_letter
 
 
-class DeleteField:
-    pass
+###############################################################################
+# Utilities for modifying dictionaries
+###############################################################################
 
 
-class Action(Enum):
-    SET_VALUE = 1
-    DELETE = 2
+DICT_MOD_SET = "set"
+DICT_MOD_DELETE = "delete"
+
+DictModActionValue = Literal[DICT_MOD_SET, DICT_MOD_DELETE]
 
 
 class DictMod(NamedTuple):
     name: str
-    action: Action
+    action: DictModActionValue
     value: Any = None
 
 
-def set_value_mods(*keys: List[str], value: Any) -> List[DictMod]:
-    """Return a list of `Action.SET_VALUE` modifications for the given keys,
-    using the given value.
+# Functions for creating mods
+
+
+def set_mod(key: str, value: Any) -> DictMod:
+    """Return a `DictMod` that sets a key to a value.
     """
-    return [DictMod(x, Action.SET_VALUE, value) for x in keys]
+    return DictMod(key, DICT_MOD_SET, value)
 
 
-def set_none_mods(*keys: List[str]) -> List[DictMod]:
-    """Return a list of `Action.SET_VALUE` modifications for the given keys,
-    using a value of `None`.
+def set_mods(*keys: str, value: Any) -> List[DictMod]:
+    """Return a list of `DictMod`s setting all keys to the given value.
     """
-    return set_value_mods(*keys, value=None)
+    return [set_mod(x, value) for x in keys]
 
 
-def delete_mods(*keys: List[str]) -> List[DictMod]:
-    """Return a list of `Action.DELETE` modification for the given keys.
+def set_none_mods(*keys: str) -> List[DictMod]:
+    """Return a list of `DictMod`s setting all keys to `None`.
     """
-    return [DictMod(x, Action.DELETE) for x in keys]
+    return set_mods(*keys, value=None)
+
+
+def delete_mod(key: str) -> DictMod:
+    """Return a `DictMod` that deletes a key.
+    """
+    return DictMod(key, DICT_MOD_DELETE)
+
+
+def delete_mods(*keys: str) -> List[DictMod]:
+    """Return a list of `DictMod`s deleting all keys.
+    """
+    return [delete_mod(x) for x in keys]
+
+
+# Functions for applying mods
 
 
 def modify_dict(d: Dict[str, Any], mods: List[DictMod]) -> None:
-    """Apply the modifications to the given dictionary and return it.
+    """Apply mods to a dictionary.
     """
-    for field, action, value in mods:
-        if action == Action.DELETE:
-            del d[field]
-        elif action == Action.SET_VALUE:
-            d[field] = value
+    for key, action, value in mods:
+        if action == DICT_MOD_DELETE:
+            del d[key]
+        elif action == DICT_MOD_SET:
+            d[key] = value
         else:
             raise ValueError(f'Invalid action {action} for mod')
 
 
 def modified_dict(d: Dict[str, Any], mods: List[DictMod]) -> Dict[str, Any]:
-    """Apply the modifications to a copy of the given dictionary and return it.
+    """Copy a dictionary, apply mods to and return it.
     """
     d = deepcopy(d)
     modify_dict(d, mods)
     return d
 
 
-def dict_without(d: Dict[str, Any], *keys: List[str]) -> Dict[str, Any]:
-    """Delete the `id` key from a copy of the given dictionary and return it.
+def dict_without(d: Dict[str, Any], *keys: str) -> Dict[str, Any]:
+    """Delete keys from a copy of the given dictionary and return it.
     """
     return modified_dict(d, delete_mods(*keys))
 
 
-
-def modified_kwargs(kwargs, mods):
-    return modified_dict(kwargs, mods)
-
-
-def kwargs_without_id(kwargs):
-    return dict_without(kwargs, 'id')
-
-
-
-
-from openpyxl.utils import get_column_letter
+###############################################################################
+# Utilities for Excel files
+###############################################################################
 
 
 def xlref(row_idx, column_idx, zero_indexed=True):

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from decimal import Decimal
 from typing import Optional, Union
 
 import attr
@@ -104,23 +105,23 @@ class Survey:
 
 @attr.s(frozen=True)
 class Sample:
-    id: int            = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
-    survey_id: int     = attr.ib(kw_only=True, validator=[instance_of(int)])
-    station: str       = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    earthmat: str      = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    name: str          = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    lat_nad27: float   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_latitude])])
-    long_nad27: float  = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_longitude])])
-    lat_nad83: float   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_latitude])])
-    long_nad83: float  = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_longitude])])
-    x_nad27: float     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
-    y_nad27: float     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
-    x_nad83: float     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
-    y_nad83: float     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
-    zone: str          = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
-    earthmat_type: str = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
-    status: str        = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
-    extra: dict        = attr.ib(kw_only=True, default=None, validator=[optional(deep_mapping(key_validator=instance_of(str), value_validator=instance_of(str), mapping_validator=instance_of(dict)))])
+    id           : int     = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
+    survey_id    : int     = attr.ib(kw_only=True, validator=[instance_of(int)])
+    station      : str     = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    earthmat     : str     = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    name         : str     = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    lat_nad27    : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_latitude])])
+    long_nad27   : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_longitude])])
+    lat_nad83    : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_latitude])])
+    long_nad83   : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_longitude])])
+    x_nad27      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
+    y_nad27      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
+    x_nad83      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
+    y_nad83      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
+    zone         : str     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    earthmat_type: str     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    status       : str     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    extra        : dict    = attr.ib(kw_only=True, default=None, validator=[optional(deep_mapping(key_validator=instance_of(str), value_validator=instance_of(str), mapping_validator=instance_of(dict)))])
 
     def __attrs_post_init__(self):
         # Validate lat/long coordinates

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 DATASET_COLUMNS = ('id', 'name', 'extra')
 DATASETS = [
     (1, 'ca.cngo.test1', {'cat': 'Duchess'}),
@@ -15,7 +17,7 @@ SURVEYS = [
 
 SAMPLE_COLUMNS = ('id', 'survey_id', 'station', 'earthmat', 'name', 'lat_nad27', 'long_nad27', 'lat_nad83', 'long_nad83', 'x_nad27', 'y_nad27', 'x_nad83', 'y_nad83', 'zone', 'earthmat_type', 'status', 'extra')
 SAMPLES = [
-    (1, 1, 'test station', 'test earthmat', 'test sample 1', 22.0, 56.0, 22.0, 56.0, 1.0, 50.0, 1.0, 50.0, 'test zone', 'test earthmat type', 'test status', {'cat': 'Skittles'}),
+    (1, 1, 'test station', 'test earthmat', 'test sample 1', Decimal(22.0), Decimal(56.0), Decimal(22.0), Decimal(56.0), Decimal(1.0), Decimal(50.0), Decimal(1.0), Decimal(50.0), 'test zone', 'test earthmat type', 'test status', {'cat': 'Skittles'}),
 ]
 
 SUBSAMPLE_COLUMNS = ('id', 'sample_id', 'parent_id', 'name')
