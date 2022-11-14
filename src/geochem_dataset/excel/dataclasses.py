@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
-from typing import FrozenSet, Tuple
+from decimal import Decimal
+from typing import Dict, Tuple
 
 
-Extra = FrozenSet[Tuple[str, str]]
+Extra = Dict[str, str]
 
 
 @dataclass(frozen=True)
 class Document:
     recommended_citation: str
-    extra: Extra = field(default_factory=frozenset)
+    extra: Extra = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -20,7 +21,7 @@ class Survey:
     party_leader: str
     description: str
     gsc_catalog_number: int
-    extra: Extra = field(default_factory=frozenset)
+    extra: Extra = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -40,15 +41,16 @@ class Sample:
     zone: str
     earthmat_type: str
     status: str
-    extra: Extra = field(default_factory=frozenset)
+    extra: Extra = field(default_factory=dict)
 
 
 ResultSubsample = Tuple[str, ...]
-ResultMetadata = FrozenSet[Tuple[str, str]]
+ResultMetadata = Dict[str, str]
 
 
 @dataclass(frozen=True)
 class Result:
+    sample: str
     subsample: ResultSubsample
     type: str
     metadata: ResultMetadata

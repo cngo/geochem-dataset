@@ -91,8 +91,6 @@ class DatasetsDatabase:
         del self.config
         del self.datasets
 
-
-
     @property
     def path(self):
         return self._path

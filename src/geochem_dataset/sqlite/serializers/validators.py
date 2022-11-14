@@ -1,6 +1,3 @@
-from attr.validators import instance_of
-
-
 def not_empty_str(instance, attribute, value):
     if len(value.strip()) == 0:
         raise ValueError(f"'{attribute.name}' must be a non-empty string")

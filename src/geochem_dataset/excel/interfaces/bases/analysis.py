@@ -166,6 +166,9 @@ class AnalysisExcelWorksheetInterface:
         ]
 
         for row_idx, subsample in subsamples.iterrows():
+            sample_name = subsample[0]
+            subsample_names = subsample[1:]
+
             for column_idx, result_type_metadata_set_column in result_type_metadata_sets.items():
                 # Get result type and metadata
 
@@ -176,7 +179,7 @@ class AnalysisExcelWorksheetInterface:
                     result_type = result_type_metadata_set_column
                     metadata = pd.Series(name=column_idx)
 
-                metadata = frozenset(
+                metadata = dict(
                     (metadata_type, metadata_value)
                     for metadata_type, metadata_value in zip(metadata_types, metadata)
                     if not pd.isna(metadata_value)
@@ -187,7 +190,7 @@ class AnalysisExcelWorksheetInterface:
                 if pd.isna(result_value):
                     result_value = None
 
-                yield Result(tuple(subsample), result_type, metadata, result_value)
+                yield Result(sample_name, tuple(subsample_names), result_type, metadata, result_value)
 
     def _load(self):
         self._df = pd.read_excel(self.workbook.path, sheet_name=self.name, header=None, keep_default_na=False)

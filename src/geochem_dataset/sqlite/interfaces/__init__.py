@@ -110,6 +110,7 @@ class Documents(SimpleForeignKeyInterface):
         except self.__model__.DoesNotExist:
             return None
 
+
 class Surveys(SimpleForeignKeyInterface):
     __model__ = models.Survey
     __fk_field__ = models.Survey.dataset_id
@@ -140,6 +141,28 @@ class Subsamples(SimpleForeignKeyInterface):
     __fk_field__ = models.Subsample.sample_id
     __serializer__ = serializers.Subsample
 
+    def get_by_name(self, name: str) -> serializers.Subsample:
+        if not isinstance(name, str):
+            raise TypeError(f'`name` must be of type `str`')
+
+        try:
+            m = self.__model__.get(
+                self.__model__.sample_id == self.fk_id,
+                self.__model__.name == name
+            )
+            return self.__serializer__.from_row(m)
+        except self.__model__.DoesNotExist:
+            return None
+
+    def create(self, **kwargs):
+        if 'sample_id' in kwargs:
+            raise ValueError
+
+        if 'parent_id' in kwargs:
+            raise ValueError
+
+        return super().create(**kwargs)
+
 
 class SubsampleChildren:
     __model__ = models.Subsample
@@ -156,9 +179,18 @@ class SubsampleChildren:
             yield self.__serializer__.from_row(row)
 
     def create(self, **kwargs):
-        for field in ('id', 'sample_id', 'parent_id'):
-            if field in kwargs and kwargs[field] is not None:
-                raise TypeError(f"`{field}` must be `None` when creating")
+        if 'id' in kwargs:
+            raise ValueError
+
+        if 'sample_id' in kwargs:
+            raise ValueError
+
+        if 'parent_id' in kwargs:
+            raise ValueError
+
+        # for field in ('id', 'sample_id', 'parent_id'):
+        #     if field in kwargs and kwargs[field] is not None:
+        #         raise TypeError(f"`{field}` must be `None` when creating")
 
         parent = models.Subsample.get_by_id(self.parent_id)
 
@@ -193,6 +225,19 @@ class MetadataTypes(SimpleForeignKeyInterface):
     __fk_field__ = models.MetadataType.dataset_id
     __serializer__ = serializers.MetadataType
 
+    def get_by_name(self, name: str) -> serializers.MetadataType:
+        if not isinstance(name, str):
+            raise TypeError(f'`name` must be of type `str`')
+
+        try:
+            m = self.__model__.get(
+                self.__model__.dataset_id == self.fk_id,
+                self.__model__.name == name
+            )
+            return self.__serializer__.from_row(m)
+        except self.__model__.DoesNotExist:
+            return None
+
 
 class Metadata:
     __model__ = models.Metadata
@@ -217,7 +262,7 @@ class Metadata:
 
         kwargs['metadata_set_id'] = self.metadata_set_id
 
-        self.__serializer__(**kwargs)  # validate
+        # self.__serializer__(**kwargs)  # validate
         m = self.__model__(**kwargs)
 
         try:
@@ -238,6 +283,19 @@ class ResultTypes(SimpleForeignKeyInterface):
     __model__ = models.ResultType
     __fk_field__ = models.ResultType.dataset_id
     __serializer__ = serializers.ResultType
+
+    def get_by_name(self, name: str) -> serializers.ResultType:
+        if not isinstance(name, str):
+            raise TypeError(f'`name` must be of type `str`')
+
+        try:
+            m = self.__model__.get(
+                self.__model__.dataset_id == self.fk_id,
+                self.__model__.name == name
+            )
+            return self.__serializer__.from_row(m)
+        except self.__model__.DoesNotExist:
+            return None
 
 
 class ResultsByDataset:

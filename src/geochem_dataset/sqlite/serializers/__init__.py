@@ -8,7 +8,7 @@ from playhouse.shortcuts import model_to_dict
 
 from .. import interfaces
 from .. import models
-from .validators import gte_other_attrib, not_empty_str, not_negative_int, valid_latitude, valid_longitude, other_attrib_given
+from .validators import gte_other_attrib, not_empty_str, not_negative_int, valid_latitude, valid_longitude
 
 DATASET_NAME_PATTERN = r'^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$'  # reverse domain name notation
 
@@ -104,24 +104,24 @@ class Survey:
 
 
 @attr.s(frozen=True)
-class Sample:
-    id           : int     = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
-    survey_id    : int     = attr.ib(kw_only=True, validator=[instance_of(int)])
-    station      : str     = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    earthmat     : str     = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    name         : str     = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    lat_nad27    : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_latitude])])
-    long_nad27   : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_longitude])])
-    lat_nad83    : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_latitude])])
-    long_nad83   : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal), valid_longitude])])
-    x_nad27      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
-    y_nad27      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
-    x_nad83      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
-    y_nad83      : Decimal = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(Decimal)])])
-    zone         : str     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
-    earthmat_type: str     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
-    status       : str     = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
-    extra        : dict    = attr.ib(kw_only=True, default=None, validator=[optional(deep_mapping(key_validator=instance_of(str), value_validator=instance_of(str), mapping_validator=instance_of(dict)))])
+class Sample       :
+    id           : int   = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
+    survey_id    : int   = attr.ib(kw_only=True, validator=[instance_of(int)])
+    station      : str   = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    earthmat     : str   = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    name         : str   = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    lat_nad27    : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_latitude])])
+    long_nad27   : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_longitude])])
+    lat_nad83    : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_latitude])])
+    long_nad83   : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_longitude])])
+    x_nad27      : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
+    y_nad27      : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
+    x_nad83      : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
+    y_nad83      : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float)])])
+    zone         : str   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    earthmat_type: str   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    status       : str   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    extra        : dict  = attr.ib(kw_only=True, default=None, validator=[optional(deep_mapping(key_validator=instance_of(str), value_validator=instance_of(str), mapping_validator=instance_of(dict)))])
 
     def __attrs_post_init__(self):
         # Validate lat/long coordinates
@@ -185,7 +185,7 @@ class Sample:
 @attr.s(frozen=True)
 class Subsample:
     id: int        = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
-    sample_id: int = attr.ib(kw_only=True, default=None, validator=[instance_of(int)])
+    sample_id: int = attr.ib(kw_only=True, validator=[instance_of(int)])
     parent_id: int = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
     name: str      = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
 
@@ -249,7 +249,7 @@ class Metadata:
 
     @classmethod
     def from_row(cls, row: models.Metadata) -> Metadata:
-        return cls(id=row.id, set_id=row.set_id, type_id=row.type_id, value=row.value)
+        return cls(id=row.id, set_id=row.metadata_set_id, type_id=row.metadata_type_id, value=row.value)
 
     @property
     def set(self) -> MetadataSet:

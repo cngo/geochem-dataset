@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC
 import dataclasses
+from decimal import Decimal
 import re
 
 import numpy as np
@@ -183,7 +184,7 @@ class SimpleExcelWorkbookInterface(ABC):
             # Add extra columns to extra field
 
             extra_columns = set(self._df.columns) - set(self._columns)
-            kwargs['extra'] = frozenset((str(x).lower(), str(row[x])) for x in extra_columns)
+            kwargs['extra'] = dict((str(x).lower(), str(row[x])) for x in extra_columns)
 
             # Create the item
 

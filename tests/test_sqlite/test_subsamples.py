@@ -1,209 +1,147 @@
 import pytest
 
 from tests.helpers.utils import (
-    set_mods, set_none_mods, delete_mods,
+    set_mods,
     modified_dict, dict_without
 )
 
 from .sample_data import (
     DATASET_COLUMNS, DATASETS,
     SURVEY_COLUMNS, SURVEYS,
-    SAMPLE_COLUMNS, SAMPLES
+    SAMPLE_COLUMNS, SAMPLES,
 )
 
 
-# class TestCreate:
-#     VALID_FIELD_DATA = {
-#         'id__not_given': delete_mods('id'),
-#         'id__NoneType':  set_none_mods('id'),
+class TestCreateRoot:
+    def test_valid(self, empty_db):
+        db = empty_db
 
-#         'survey_id__not_given': delete_mods('id', 'survey_id'),
-#         'survey_id__NoneType':  delete_mods('id') + set_none_mods('survey_id'),
+        # Create a dataset
+        dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
-#         'lat_and_long_nad27__not_given': delete_mods('id', 'lat_nad27', 'long_nad27'),
-#         'lat_and_long_nad27__NoneType':  delete_mods('id') + set_none_mods('lat_nad27', 'long_nad27'),
-#         'lat_and_long_nad83__not_given': delete_mods('id', 'lat_nad83', 'long_nad83'),
-#         'lat_and_long_nad83__NoneType':  delete_mods('id') + set_none_mods('lat_nad83', 'long_nad83'),
+        # Create a survey
+        survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
+        survey_mod_kwargs = dict_without(survey_kwargs, 'id')
+        survey = dataset.surveys.create(**survey_mod_kwargs)
 
-#         'x_and_y_nad27__not_given': delete_mods('id', 'x_nad27', 'y_nad27'),
-#         'x_and_y_nad27__NoneType':  delete_mods('id') + set_none_mods('x_nad27', 'y_nad27'),
-#         'x_and_y_nad83__not_given': delete_mods('id', 'x_nad83', 'y_nad83'),
-#         'x_and_y_nad83__NoneType':  delete_mods('id') + set_none_mods('x_nad83', 'y_nad83'),
+        # Create a sample
+        sample_kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
+        sample_mod_kwargs = dict_without(sample_kwargs, 'id')
+        sample = survey.samples.create(**sample_mod_kwargs)
 
-#         'x_and_y_nad27_and_nad83_and_zone__not_given': delete_mods('id', 'x_nad27', 'y_nad27', 'x_nad83', 'y_nad83', 'zone'),
-#         'x_and_y_nad27_and_nad83_and_zone__NoneType':  delete_mods('id') + set_none_mods('x_nad27', 'y_nad27', 'x_nad83', 'y_nad83', 'zone'),
+        # Create a root subsample (id=1)
+        subsample_kwargs = dict(name="subsample-1")
+        subsample = sample.subsamples.create(**subsample_kwargs)
 
-#         'earthmat_type__not_given': delete_mods('id', 'earthmat_type'),
-#         'earthmat_type__NoneType':  delete_mods('id') + set_none_mods('earthmat_type'),
+        assert subsample.id == 1
+        assert subsample.sample == sample
+        assert subsample.sample_id == sample.id
+        assert subsample.parent == None
+        assert subsample.parent_id == None
+        assert subsample.name == subsample_kwargs['name']
 
-#         'status__not_given': delete_mods('id', 'status'),
-#         'status__NoneType':  delete_mods('id') + set_none_mods('status'),
+    INVALID_FIELD_DATA = {
+        'id__given'       : (set_mods('id', value=99), ValueError),
+        'sample_id__given': (set_mods('sample_id', value=99), ValueError),
+        'parent_id__given': (set_mods('parent_id', value=99), ValueError),
+    }
 
-#         'extra__not_given': delete_mods('id', 'extra'),
-#         'extra__NoneType':  delete_mods('id') + set_none_mods('extra'),
-#     }
+    @pytest.mark.parametrize('mods, expected_exc', INVALID_FIELD_DATA.values(), ids=INVALID_FIELD_DATA.keys())
+    def test_invalid(self, empty_db, mods, expected_exc):
+        db = empty_db
 
-#     @pytest.mark.parametrize('mods', VALID_FIELD_DATA.values(), ids=VALID_FIELD_DATA.keys())
-#     def test_valid(self, empty_db, mods):
-#         db = empty_db
+        # Create a dataset
+        dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
-#         # Create a dataset
-#         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-#         dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
-#         dataset = db.datasets.create(**dataset_mod_kwargs)
+        # Create a survey
+        survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
+        survey_mod_kwargs = dict_without(survey_kwargs, 'id')
+        survey = dataset.surveys.create(**survey_mod_kwargs)
 
-#         # Create a survey
-#         survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
-#         survey_mod_kwargs = dict_without(survey_kwargs, 'id')
-#         survey = dataset.surveys.create(**survey_mod_kwargs)
+        # Create a sample
+        sample_kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
+        sample_mod_kwargs = dict_without(sample_kwargs, 'id')
+        sample = survey.samples.create(**sample_mod_kwargs)
 
-#         # Create a sample
-#         sample_kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
-#         sample_mod_kwargs = modified_dict(sample_kwargs, mods)
+        # Attempt to create a root subsample with modifications
+        with pytest.raises(expected_exc):
+            subsample_kwargs = dict(name="subsample-1")
+            subsample_mod_kwargs = modified_dict(subsample_kwargs, mods)
+            sample.subsamples.create(**subsample_mod_kwargs)
 
-#         sample = survey.samples.create(**sample_mod_kwargs)
 
-#         assert sample.id == sample_kwargs['id']
-#         assert sample.survey_id == sample_kwargs['survey_id']
-#         assert sample.station == sample_kwargs['station']
-#         assert sample.earthmat == sample_kwargs['earthmat']
-#         assert sample.name == sample_kwargs['name']
-#         assert sample.lat_nad27 == sample_mod_kwargs.get('lat_nad27', None)
-#         assert sample.long_nad27 == sample_mod_kwargs.get('long_nad27', None)
-#         assert sample.lat_nad83 == sample_mod_kwargs.get('lat_nad83', None)
-#         assert sample.long_nad83 == sample_mod_kwargs.get('long_nad83', None)
-#         assert sample.x_nad27 == sample_mod_kwargs.get('x_nad27', None)
-#         assert sample.y_nad27 == sample_mod_kwargs.get('y_nad27', None)
-#         assert sample.x_nad83 == sample_mod_kwargs.get('x_nad83', None)
-#         assert sample.y_nad83 == sample_mod_kwargs.get('y_nad83', None)
-#         assert sample.zone == sample_mod_kwargs.get('zone', None)
-#         assert sample.earthmat_type == sample_mod_kwargs.get('earthmat_type', None)
-#         assert sample.status == sample_mod_kwargs.get('status', None)
-#         assert sample.extra == sample_mod_kwargs.get('extra', None)
+class TestCreateChild:
+    def test_valid(self, empty_db):
+        db = empty_db
 
-#     INVALID_FIELD_DATA = {
-#         'id__given': (set_mods('id', value=99), ValueError),
+        # Create a dataset
+        dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
-#         'survey_id__given': (set_mods('survey_id', value=99), ValueError),
+        # Create a survey
+        survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
+        survey_mod_kwargs = dict_without(survey_kwargs, 'id')
+        survey = dataset.surveys.create(**survey_mod_kwargs)
 
-#         'station__not_given':            (delete_mods('id', 'station'), TypeError),
-#         'station__wrong_type__NoneType': (delete_mods('id') + set_none_mods('station'), TypeError),
-#         'station__wrong_type__int':      (delete_mods('id') + set_mods('station', value=99), TypeError),
-#         'station__wrong_value__empty':   (delete_mods('id') + set_mods('station', value=''), ValueError),
+        # Create a sample
+        sample_kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
+        sample_mod_kwargs = dict_without(sample_kwargs, 'id')
+        sample = survey.samples.create(**sample_mod_kwargs)
 
-#         'earthmat__not_given':            (delete_mods('id', 'earthmat'), TypeError),
-#         'earthmat__wrong_type__NoneType': (delete_mods('id') + set_none_mods('earthmat'), TypeError),
-#         'earthmat__wrong_type__int':      (delete_mods('id') + set_mods('earthmat', value=99), TypeError),
-#         'earthmat__wrong_value__empty':   (delete_mods('id') + set_mods('earthmat', value=''), ValueError),
+        # Create a root subsample (id=1)
+        root_subsample_kwargs = dict(name="root-subsample")
+        root_subsample = sample.subsamples.create(**root_subsample_kwargs)
 
-#         'name__not_given':            (delete_mods('id', 'name'), TypeError),
-#         'name__wrong_type__NoneType': (delete_mods('id') + set_none_mods('name'), TypeError),
-#         'name__wrong_type__int':      (delete_mods('id') + set_mods('name', value=99), TypeError),
-#         'name__wrong_value__empty':   (delete_mods('id') + set_mods('name', value=''), ValueError),
+        # Create a child subsample (id=2)
+        child_subsample_kwargs = {
+            'name': "child-subsample"
+        }
+        child_subsample = root_subsample.children.create(**child_subsample_kwargs)
 
-#         'lat_nad27__wrong_type__str':  (delete_mods('id') + set_mods('lat_nad27', value='Skittles'), TypeError),
-#         'lat_nad27__wrong_type__int':  (delete_mods('id') + set_mods('lat_nad27', value=50), TypeError),
-#         'lat_nad27__invalid_value':    (delete_mods('id') + set_mods('lat_nad27', value=99.0), ValueError),
-#         'long_nad27__wrong_type__str': (delete_mods('id') + set_mods('long_nad27', value='Skittles'), TypeError),
-#         'long_nad27__wrong_type__int': (delete_mods('id') + set_mods('long_nad27', value=100), TypeError),
-#         'long_nad27__invalid_value':   (delete_mods('id') + set_mods('long_nad27', value=189.0), ValueError),
+        assert child_subsample.id == 2
+        assert child_subsample.sample == sample
+        assert child_subsample.parent == root_subsample
+        assert child_subsample.name == child_subsample_kwargs['name']
 
-#         'lat_nad27__given__long_nad27__not_given': (delete_mods('id', 'long_nad27') + set_mods('lat_nad27', value=90.0), ValueError),
-#         'lat_nad27__given__long_nad27__NoneType':  (delete_mods('id') + set_mods('lat_nad27', value=90.0) + set_none_mods('long_nad27'), ValueError),
-#         'lat_nad27__not_given__long_nad27__given': (delete_mods('id', 'lat_nad27') + set_mods('long_nad27', value=180.0), ValueError),
-#         'lat_nad27__NoneType__long_nad27_given':   (delete_mods('id') + set_none_mods('lat_nad27') + set_mods('long_nad27', value=180.0), ValueError),
+    INVALID_FIELD_DATA = {
+        'id__given'       : (set_mods('id', value=99), ValueError),
+        'sample_id__given': (set_mods('sample_id', value=99), ValueError),
+        'parent_id__given': (set_mods('parent_id', value=99), ValueError),
+    }
 
-#         'lat_nad83__wrong_type__str':  (delete_mods('id') + set_mods('lat_nad83', value='Skittles'), TypeError),
-#         'lat_nad83__wrong_type__int':  (delete_mods('id') + set_mods('lat_nad83', value=50), TypeError),
-#         'lat_nad83__invalid_value':    (delete_mods('id') + set_mods('lat_nad83', value=99.0), ValueError),
-#         'long_nad83__wrong_type__str': (delete_mods('id') + set_mods('long_nad83', value='Skittles'), TypeError),
-#         'long_nad83__wrong_type__int': (delete_mods('id') + set_mods('long_nad83', value=100), TypeError),
-#         'long_nad83__invalid_value':   (delete_mods('id') + set_mods('long_nad83', value=189.0), ValueError),
+    @pytest.mark.parametrize('mods, expected_exc', INVALID_FIELD_DATA.values(), ids=INVALID_FIELD_DATA.keys())
+    def test_invalid(self, empty_db, mods, expected_exc):
+        db = empty_db
 
-#         'lat_nad83__given__long_nad83__not_given': (delete_mods('id', 'long_nad83') + set_mods('lat_nad83', value=90.0), ValueError),
-#         'lat_nad83__given__long_nad83__NoneType':  (delete_mods('id') + set_mods('lat_nad83', value=90.0) + set_none_mods('long_nad83'), ValueError),
-#         'lat_nad83__not_given__long_nad83__given': (delete_mods('id', 'lat_nad83') + set_mods('long_nad83', value=180.0), ValueError),
-#         'lat_nad83__NoneType__long_nad83_given':   (delete_mods('id') + set_none_mods('lat_nad83') + set_mods('long_nad83', value=180.0), ValueError),
+        # Create a dataset
+        dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
+        dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
+        dataset = db.datasets.create(**dataset_mod_kwargs)
 
-#         'x_nad27__wrong_type__str':              (delete_mods('id') + set_mods('x_nad27', value='Skittles'), TypeError),
-#         'x_nad27__wrong_type__int':              (delete_mods('id') + set_mods('x_nad27', value=99), TypeError),
-#         'x_nad27__invalid_value__-99.0':         (delete_mods('id') + set_mods('x_nad27', value=-99.0), ValueError),
-#         'x_nad27__invalid_value__0.0':           (delete_mods('id') + set_mods('x_nad27', value=0.0), ValueError),
-#         'x_nad27__invalid_value__1000000.0':     (delete_mods('id') + set_mods('x_nad27', value=1000000.0), ValueError),
-#         'x_nad27__invalid_value__1000000.1':     (delete_mods('id') + set_mods('x_nad27', value=1000000.1), ValueError),
-#         'y_nad27__wrong_type__str':              (delete_mods('id') + set_mods('y_nad27', value='Skittles'), TypeError),
-#         'y_nad27__wrong_type__int':              (delete_mods('id') + set_mods('y_nad27', value=99), TypeError),
-#         'y_nad27__invalid_value__-99.0':         (delete_mods('id') + set_mods('y_nad27', value=-99.0), ValueError),
-#         'y_nad27__invalid_value__0.0':           (delete_mods('id') + set_mods('y_nad27', value=0.0), ValueError),
-#         'y_nad27__invalid_value__10000000000.0': (delete_mods('id') + set_mods('y_nad27', value=10000000000.0), ValueError),
+        # Create a survey
+        survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
+        survey_mod_kwargs = dict_without(survey_kwargs, 'id')
+        survey = dataset.surveys.create(**survey_mod_kwargs)
 
-#         'x_nad27__given__y_nad27__not_given': (delete_mods('id', 'y_nad27') + set_mods('x_nad27', value=22.0), ValueError),
-#         'x_nad27__given__y_nad27__NoneType':  (delete_mods('id') + set_mods('x_nad27', value=22.0) + set_none_mods('y_nad27'), ValueError),
-#         'x_nad27__not_given__y_nad27__given': (delete_mods('id', 'x_nad27') + set_mods('y_nad27', value=22.0), ValueError),
-#         'x_nad27__NoneType__y_nad27_given':   (delete_mods('id') + set_none_mods('x_nad27') + set_mods('y_nad27', value=22.0), ValueError),
+        # Create a sample
+        sample_kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
+        sample_mod_kwargs = dict_without(sample_kwargs, 'id')
+        sample = survey.samples.create(**sample_mod_kwargs)
 
-#         'x_nad83__wrong_type__str':              (delete_mods('id') + set_mods('x_nad83', value='Skittles'), TypeError),
-#         'x_nad83__wrong_type__int':              (delete_mods('id') + set_mods('x_nad83', value=99), TypeError),
-#         'x_nad83__invalid_value__-99.0':         (delete_mods('id') + set_mods('x_nad83', value=-99.0), ValueError),
-#         'x_nad83__invalid_value__0.0':           (delete_mods('id') + set_mods('x_nad83', value=0.0), ValueError),
-#         'x_nad83__invalid_value__1000000.0':     (delete_mods('id') + set_mods('x_nad83', value=1000000.0), ValueError),
-#         'x_nad83__invalid_value__1000000.1':     (delete_mods('id') + set_mods('x_nad83', value=1000000.1), ValueError),
-#         'y_nad83__wrong_type__str':              (delete_mods('id') + set_mods('y_nad83', value='Skittles'), TypeError),
-#         'y_nad83__wrong_type__int':              (delete_mods('id') + set_mods('y_nad83', value=99), TypeError),
-#         'y_nad83__invalid_value__-99.0':         (delete_mods('id') + set_mods('y_nad83', value=-99.0), ValueError),
-#         'y_nad83__invalid_value__0.0':           (delete_mods('id') + set_mods('y_nad83', value=0.0), ValueError),
-#         'y_nad83__invalid_value__10000000000.0': (delete_mods('id') + set_mods('y_nad83', value=10000000000.0), ValueError),
+        # Create a root subsample (id=1)
+        root_subsample_kwargs = dict(name="root-subsample")
+        root_subsample = sample.subsamples.create(**root_subsample_kwargs)
 
-#         'x_nad83__given__y_nad83__not_given': (delete_mods('id', 'y_nad83') + set_mods('x_nad83', value=22.0), ValueError),
-#         'x_nad83__given__y_nad83__NoneType':  (delete_mods('id') + set_mods('x_nad83', value=22.0) + set_none_mods('y_nad83'), ValueError),
-#         'x_nad83__not_given__y_nad83__given': (delete_mods('id', 'x_nad83') + set_mods('y_nad83', value=22.0), ValueError),
-#         'x_nad83__NoneType__y_nad83_given':   (delete_mods('id') + set_none_mods('x_nad83') + set_mods('y_nad83', value=22.0), ValueError),
-
-#         'zone__wrong_type__int': (delete_mods('id') + set_mods('zone', value=99), TypeError),
-#         'zone__empty':           (delete_mods('id') + set_mods('zone', value=''), ValueError),
-
-#         'earthmat_type__wrong_type__int': (delete_mods('id') + set_mods('earthmat_type', value=99), TypeError),
-#         'earthmat_type__empty':           (delete_mods('id') + set_mods('earthmat_type', value=''), ValueError),
-
-#         'status__wrong_type__int': (delete_mods('id') + set_mods('status', value=99), TypeError),
-#         'status__empty':           (delete_mods('id') + set_mods('status', value=''), ValueError),
-
-#         'extra__wrong_type__str':            (delete_mods('id') + set_mods('extra', value='Skittles'), TypeError),
-#         'extra__wrong_type__int':            (delete_mods('id') + set_mods('extra', value=99), TypeError),
-#         'extra__wrong_item_key_type__int':   (delete_mods('id') + set_mods('extra', value={99: 'Skittles'}), TypeError),
-#         'extra__wrong_item_value_type__int': (delete_mods('id') + set_mods('extra', value={'cat': 99}),  TypeError),
-#     }
-
-#     @pytest.mark.parametrize('mods, expected_exc', INVALID_FIELD_DATA.values(), ids=INVALID_FIELD_DATA.keys())
-#     def test_invalid(self, empty_db, mods, expected_exc):
-#         db = empty_db
-
-#         # Create a dataset
-#         dataset_kwargs = dict(zip(DATASET_COLUMNS, DATASETS[0]))
-#         dataset_mod_kwargs = dict_without(dataset_kwargs, 'id')
-#         dataset = db.datasets.create(**dataset_mod_kwargs)
-
-#         # Create a survey
-#         survey_kwargs = dict(zip(SURVEY_COLUMNS, SURVEYS[0]))
-#         survey_mod_kwargs = dict_without(survey_kwargs, 'id')
-#         survey = dataset.surveys.create(**survey_mod_kwargs)
-
-#         # Create a sample
-#         sample_kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
-#         sample_mod_kwargs = modified_dict(sample_kwargs, mods)
-
-#         with pytest.raises(expected_exc):
-#             survey.samples.create(**sample_mod_kwargs)
-
-#     def test_with_duplicate_station_earthmat_name(self, populated_db):
-#         dataset = populated_db.datasets.get_by_id(1)
-#         survey = dataset.surveys.get_by_id(1)
-
-#         kwargs = dict(zip(SAMPLE_COLUMNS, SAMPLES[0]))
-#         mod_kwargs = dict_without(kwargs, 'id')
-
-#         with pytest.raises(ValueError):
-#             survey.samples.create(**mod_kwargs)
+        # Attempt to create a child subsample
+        with pytest.raises(expected_exc):
+            child_subsample_kwargs = dict(name="child-subsample")
+            child_subsample_mod_kwargs = modified_dict(child_subsample_kwargs, mods)
+            root_subsample.children.create(**child_subsample_mod_kwargs)
 
 
 # class TestGetByID:

@@ -1,7 +1,7 @@
 from peewee import Check
 from playhouse.sqlite_ext import (
     DatabaseProxy, Model,
-    CharField, DecimalField, ForeignKeyField, IntegerField, JSONField
+    CharField, FloatField, ForeignKeyField, IntegerField, JSONField
 )
 
 database_proxy = DatabaseProxy()
@@ -57,7 +57,7 @@ class Survey(BaseModel):
             (('dataset', 'title'), True),
         )
         constraints = (
-            Check('year_end IS NULL OR year_end >= year_begin)'),
+            Check('year_end IS NULL OR year_end >= year_begin'),
         )
 
 
@@ -66,17 +66,17 @@ class Sample(BaseModel):
     station       = CharField()
     earthmat      = CharField()
     name          = CharField()
-    lat_nad27     = DecimalField(null=True)
-    long_nad27    = DecimalField(null=True)
-    lat_nad83     = DecimalField(null=True)
-    long_nad83    = DecimalField(null=True)
-    x_nad27       = DecimalField(null=True)
-    y_nad27       = DecimalField(null=True)
-    x_nad83       = DecimalField(null=True)
-    y_nad83       = DecimalField(null=True)
-    zone          = CharField()
+    lat_nad27     = FloatField(null=True)
+    long_nad27    = FloatField(null=True)
+    lat_nad83     = FloatField(null=True)
+    long_nad83    = FloatField(null=True)
+    x_nad27       = FloatField(null=True)
+    y_nad27       = FloatField(null=True)
+    x_nad83       = FloatField(null=True)
+    y_nad83       = FloatField(null=True)
+    zone          = CharField(null=True, default=None)
     earthmat_type = CharField()
-    status        = CharField()
+    status        = CharField(null=True, default=None)
     extra         = JSONField(null=True, default=None)
 
     class Meta:
@@ -94,13 +94,24 @@ class Sample(BaseModel):
 
 class Subsample(BaseModel):
     sample = ForeignKeyField(Sample, backref='subsamples')
-    parent = ForeignKeyField('self', backref='subsamples', null=True)
+    parent = ForeignKeyField('self', backref='children', null=True)
     name   = CharField()
 
     class Meta:
         table_name = 'subsamples'
         indexes = (
             (('sample', 'parent', 'name'), True),
+        )
+
+
+class ResultType(BaseModel):
+    dataset = ForeignKeyField(Dataset, backref='result_types')
+    name    = CharField()
+
+    class Meta:
+        table_name = 'result_types'
+        indexes = (
+            (('dataset', 'name'), True),
         )
 
 
@@ -131,17 +142,6 @@ class Metadata(BaseModel):
         table_name = 'metadata'
         indexes = (
             (('set', 'type'), True),
-        )
-
-
-class ResultType(BaseModel):
-    dataset = ForeignKeyField(Dataset, backref='result_types')
-    name    = CharField()
-
-    class Meta:
-        table_name = 'result_types'
-        indexes = (
-            (('dataset', 'name'), True),
         )
 
 
