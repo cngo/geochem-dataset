@@ -131,28 +131,43 @@ class Surveys(SimpleForeignKeyInterface):
 
 
 class Samples(SimpleForeignKeyInterface):
-    __model__ = models.Sample
-    __fk_field__ = models.Sample.survey_id
+    __model__      = models.Sample
+    __fk_field__   = models.Sample.survey_id
     __serializer__ = serializers.Sample
 
+    def create(self, **kwargs):
+        # cast values
+        for x in self.__serializer__.__attrs_attrs__:
+            # int to float
+            if x.type == 'float' and isinstance(kwargs[x.name], int):
+                kwargs[x.name] = float(kwargs[x.name])
+            # int to str
+            elif x.type == 'str' and isinstance(kwargs[x.name], int):
+                kwargs[x.name] = str(kwargs[x.name])
 
-class Subsamples(SimpleForeignKeyInterface):
-    __model__ = models.Subsample
-    __fk_field__ = models.Subsample.sample_id
-    __serializer__ = serializers.Subsample
+        return super().create(**kwargs)
 
-    def get_by_name(self, name: str) -> serializers.Subsample:
+    def get_by_name(self, name: str) -> serializers.Sample:
         if not isinstance(name, str):
             raise TypeError(f'`name` must be of type `str`')
 
+        Sample    = self.__model__
+        survey_id = self.fk_id
+
         try:
-            m = self.__model__.get(
-                self.__model__.sample_id == self.fk_id,
-                self.__model__.name == name
+            sample = Sample.get(
+                Sample.survey_id == survey_id,
+                Sample.name == name
             )
-            return self.__serializer__.from_row(m)
-        except self.__model__.DoesNotExist:
+            return self.__serializer__.from_row(sample)
+        except Sample.DoesNotExist:
             return None
+
+
+class Subsamples(SimpleForeignKeyInterface):
+    __model__      = models.Subsample
+    __fk_field__   = models.Subsample.sample_id
+    __serializer__ = serializers.Subsample
 
     def create(self, **kwargs):
         if 'sample_id' in kwargs:
@@ -163,13 +178,28 @@ class Subsamples(SimpleForeignKeyInterface):
 
         return super().create(**kwargs)
 
+    def get_by_name(self, name: str) -> serializers.Subsample:
+        if not isinstance(name, str):
+            raise TypeError(f'`name` must be of type `str`')
 
-class SubsampleChildren:
-    __model__ = models.Subsample
+        Subsample           = self.__model__
+        SubsampleSerializer = self.__serializer__
+        sample_id           = self.fk_id
+
+        try:
+            subsample = Subsample.get(
+                Subsample.sample_id == sample_id,
+                Subsample.name == name
+            )
+            return SubsampleSerializer.from_row(subsample)
+        except Subsample.DoesNotExist:
+            return None
+
+
+class SubsampleChildren(SimpleForeignKeyInterface):
+    __model__      = models.Subsample
+    __fk_field__   = models.Subsample.parent_id
     __serializer__ = serializers.Subsample
-
-    def __init__(self, parent_id):
-        self.parent_id = parent_id
 
     def __iter__(self):
         q = self.__model__.select(). \
@@ -178,30 +208,16 @@ class SubsampleChildren:
         for row in q.iterator():
             yield self.__serializer__.from_row(row)
 
-    def create(self, **kwargs):
-        if 'id' in kwargs:
-            raise ValueError
+    def create(self, *, name: str) -> serializers.Subsample:
+        Subsample           = self.__model__
+        SubsampleSerializer = self.__serializer__
+        parent_id           = self.fk_id
 
-        if 'sample_id' in kwargs:
-            raise ValueError
-
-        if 'parent_id' in kwargs:
-            raise ValueError
-
-        # for field in ('id', 'sample_id', 'parent_id'):
-        #     if field in kwargs and kwargs[field] is not None:
-        #         raise TypeError(f"`{field}` must be `None` when creating")
-
-        parent = models.Subsample.get_by_id(self.parent_id)
-
-        kwargs['sample_id'] = parent.sample_id
-        kwargs['parent_id'] = self.parent_id
-
-        self.__serializer__(**kwargs)  # validate
-        m = self.__model__(**kwargs)
+        parent = models.Subsample.get_by_id(parent_id)
 
         try:
-            rows_modified = m.save()
+            subsample = Subsample(sample=parent.sample, parent=parent, name=name)
+            rows_modified = subsample.save()
         except peewee.IntegrityError as e:
             if e.args[0].startswith("UNIQUE constraint failed:"):
                 raise ValueError(f"`{self.__model__}` already exists")
@@ -211,7 +227,24 @@ class SubsampleChildren:
         if rows_modified == 0:
             raise Exception('FAILED')
 
-        return self.__serializer__.from_row(m)
+        return SubsampleSerializer.from_row(subsample)
+
+    def get_by_name(self, name: str) -> serializers.Subsample:
+        if not isinstance(name, str):
+            raise TypeError(f'`name` must be of type `str`')
+
+        Subsample           = self.__model__
+        SubsampleSerializer = self.__serializer__
+        parent_id           = self.fk_id
+
+        try:
+            subsample = Subsample.get(
+                Subsample.parent_id == parent_id,
+                Subsample.name == name
+            )
+            return SubsampleSerializer.from_row(subsample)
+        except Subsample.DoesNotExist:
+            return None
 
 
 class MetadataSets(SimpleForeignKeyInterface):
@@ -296,6 +329,24 @@ class ResultTypes(SimpleForeignKeyInterface):
             return self.__serializer__.from_row(m)
         except self.__model__.DoesNotExist:
             return None
+
+
+class SubsampleResults(SimpleForeignKeyInterface):
+    __model__      = models.Result
+    __fk_field__   = models.Result.subsample_id
+    __serializer__ = serializers.Result
+
+    def create(self, *, result_type, metadata_set, result_value):
+        Result           = self.__model__
+        ResultSerializer = self.__serializer__
+
+        subsample_id = self.fk_id
+        subsample = models.Subsample.get_by_id(subsample_id)
+
+        result = Result(subsample=subsample, type=result_type.id, metadata_set=metadata_set.id, value=result_value)
+        result.save()
+
+        return ResultSerializer.from_row(result)
 
 
 class ResultsByDataset:

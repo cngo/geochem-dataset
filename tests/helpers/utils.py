@@ -1,5 +1,6 @@
 from copy import deepcopy
 from enum import Enum
+import re
 from typing import Any, Dict, List, Literal, NamedTuple
 
 from openpyxl.utils import get_column_letter
@@ -89,17 +90,22 @@ def dict_without(d: Dict[str, Any], *keys: str) -> Dict[str, Any]:
 ###############################################################################
 
 
-def xlref(row_idx, column_idx, zero_indexed=True):
+def xlref(row_idx, column_idx, zero_indexed=True) -> str:
     return xlcolref(column_idx, zero_indexed) + str(xlrowref(row_idx, zero_indexed))
 
 
-def xlcolref(column_idx, zero_indexed=True):
+def xlcolref(column_idx, zero_indexed=True) -> str:
     if zero_indexed:
         column_idx += 1
     return get_column_letter(column_idx)
 
 
-def xlrowref(row_idx, zero_indexed=True):
+def xlrowref(row_idx, zero_indexed=True) -> int:
     if zero_indexed:
         row_idx += 1
     return row_idx
+
+
+def parse_cell(cell: str) -> tuple[str]:
+    m = re.match('^([A-Z]+)([0-9]+)$', cell)
+    return m.groups()

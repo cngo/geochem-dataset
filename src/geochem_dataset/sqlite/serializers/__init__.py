@@ -82,11 +82,11 @@ class Survey:
     dataset_id: int                   = attr.ib(kw_only=True, validator=[instance_of(int)])
     title: str                        = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
     organization: str                 = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    year_begin: int                   = attr.ib(kw_only=True, validator=[instance_of(int), not_negative_int])
+    year_begin: Optional[int]         = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(int), not_negative_int])])
     year_end: Optional[int]           = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(int), not_negative_int, gte_other_attrib('year_begin')])])
     party_leader: str                 = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str)])])
     description: str                  = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str)])])
-    gsc_catalog_number: Optional[int] = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
+    gsc_catalog_number: Optional[str] = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(str))])
     extra: dict                       = attr.ib(kw_only=True, default=None, validator=[optional(deep_mapping(key_validator=instance_of(str), value_validator=instance_of(str), mapping_validator=instance_of(dict)))])
 
     @classmethod
@@ -104,11 +104,11 @@ class Survey:
 
 
 @attr.s(frozen=True)
-class Sample       :
+class Sample:
     id           : int   = attr.ib(kw_only=True, default=None, validator=[optional(instance_of(int))])
     survey_id    : int   = attr.ib(kw_only=True, validator=[instance_of(int)])
-    station      : str   = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
-    earthmat     : str   = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
+    station      : str   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
+    earthmat     : str   = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(str), not_empty_str])])
     name         : str   = attr.ib(kw_only=True, validator=[instance_of(str), not_empty_str])
     lat_nad27    : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_latitude])])
     long_nad27   : float = attr.ib(kw_only=True, default=None, validator=[optional([instance_of(float), valid_longitude])])
@@ -211,8 +211,8 @@ class Subsample:
         return interfaces.SubsampleChildren(self.id)
 
     @property
-    def results(self) -> interfaces.ResultsBySubsample:
-        return interfaces.ResultsBySubsample(self.id)
+    def results(self) -> interfaces.SubsampleResults:
+        return interfaces.SubsampleResults(self.id)
 
 
 @attr.s(frozen=True)
@@ -298,4 +298,4 @@ class Result:
 
     @classmethod
     def from_row(cls, row: models.Result) -> Result:
-        return cls(id=row.id, subsample_id=row.subsample_id, type_id=row.type_id, metadata_set_id=row.metadata_set_id, value=row.value)
+        return cls(id=row.id, subsample_id=row.subsample.id, type_id=row.type.id, metadata_set_id=row.metadata_set.id, value=row.value)

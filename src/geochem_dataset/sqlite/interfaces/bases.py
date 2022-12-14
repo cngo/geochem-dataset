@@ -72,6 +72,9 @@ class SimpleForeignKeyInterface:
         fk_id_field_name = f'{self.__fk_field__.name}_id'
         kwargs[fk_id_field_name] = self.fk_id
 
+        if 'extra' in kwargs:
+            kwargs['extra'] = {k: v for k, v in kwargs['extra'].items() if v is not None}
+
         s = self.__serializer__(**kwargs)
         m = self.__model__(**kwargs)
 

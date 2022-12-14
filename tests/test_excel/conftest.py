@@ -1,71 +1,63 @@
 from pathlib import Path
 
-import pandas as pd
 import pytest
+import yaml
 
-from tests.test_excel.helpers.dataset_data import DatasetData
+from .helpers.dataset_excel_data import DatasetExcelData
 
-TEST_DATA = {
-    'DOCUMENT.xlsx': {
-        'DOCUMENT': {
-            'documents': [
-                ('A test citation',),
-            ]
-        }
-    },
-    'SURVEYS.xlsx': {
-        'SURVEYS': {
-            'surveys': [
-                ('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', 'Canada-Nunavut Geoscience Office', 2011, 2013, 'Tremblay, Tommy', 'A test description', 1000),
-            ]
-        }
-    },
-    'SAMPLES.xlsx': {
-        'SAMPLES': {
-            'samples': [
-                ('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', '11TIAT001', '11TIAT001A', '11TIAT001A01', None, None, 64.010103, -67.351092, None, None, None, None, None, 'Till', None),
-                ('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', '11TIAT024', '11TIAT024A', '11TIAT024A01', None, None, 64.472825, -67.721319, None, None, None, None, None, 'Till', None),
-                ('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', '12TIAT138', '12TIAT138A', '12TIAT138A01', None, None, 64.209300, -67.011316, None, None, None, None, None, 'Till', None),
-                ('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', '12TIAT139', '12TIAT139A', '12TIAT139A01', None, None, 64.334217, -67.087329, None, None, None, None, None, 'Till', None),
-            ]
-        }
-    },
-    'BULK.xlsx': {
-        'BULK1': {
-            'subsample_results_sets': [
-                (('11TIAT001A01', '11TIAT001A01',), ('2.5Y 6/4', 'light yellowish brown', '7.256')),
-                (('11TIAT024A01', '11TIAT024A01',), ('2.5Y 5/4', 'light olive brown', '22.173')),
-            ],
-            'metadata_types': ('Method', 'Threshold', 'Unit', 'Fraction_min', 'Fraction_max', 'Year', 'Lab_analysis'),
-            'result_type_metadata_sets': [
-                ('Soil_Munsell', ('SP64 Series X-Rite Spectrophotometer', '', '', '0', '2mm', '2013', 'GSC Sedimentology')),
-                ('Colour_Description', ('SP64 Series X-Rite Spectrophotometer', '', '', '0', '2mm', '2013', 'GSC Sedimentology')),
-                ('W_peb_bulk', ('laser particle size analyzer and Camsizer & Lecotrac LT100', '', 'pct', '0', '30cm', '2013', 'GSC Sedimentology')),
-            ],
-        },
-        'BULK2': {
-            'subsample_results_sets': [
-                (('12TIAT138A01', '12TIAT138A01',), ('2.5Y 6/4', 'light yellowish brown', '12.699')),
-                (('12TIAT139A01', '12TIAT139A01',), ('2.5Y 5/4', 'light olive brown', '22.173')),
-            ],
-            'metadata_types': ('Method', 'Threshold', 'Unit', 'Fraction_min', 'Fraction_max', 'Year', 'Lab_analysis'),
-            'result_type_metadata_sets': [
-                ('Soil_Munsell', ('SP64 Series X-Rite Spectrophotometer', '', '', '0', '2mm', '2013', 'GSC Sedimentology')),
-                ('Colour_Description', ('SP64 Series X-Rite Spectrophotometer', '', '', '0', '2mm', '2013', 'GSC Sedimentology')),
-                ('W_peb_bulk', ('laser particle size analyzer and Camsizer & Lecotrac LT100', '', 'pct', '0', '30cm', '2013', 'GSC Sedimentology')),
-            ],
-        }
-    }
+
+FIXTURE_DATASET_NAME = 'ca.cngo.test'
+FIXTURE_DATASET_EXCEL_DATA_PATH = Path(__file__).parent / 'fixture_dataset_excel_data.yaml'
+
+ERROR_MESSAGES = {
+    'missing_worksheet'               : 'Worksheet {worksheet} is missing from workbook {workbook}',
+    'missing_columns'                 : 'Worksheet {workbook}::{worksheet} is missing columns: {columns}',
+    'extra_columns'                   : 'Worksheet {workbook}::{worksheet} has extra columns: {columns}',
+    'too_few_rows'                    : 'Worksheet {workbook}::{worksheet} has too few rows (min is {min_rows} and max is {max_rows})',
+    'too_many_rows'                   : 'Worksheet {workbook}::{worksheet} has too many rows (min is {min_rows} and max is {max_rows})',
+    'unique_constraint_violation'     : 'Row {row} of worksheet {workbook}::{worksheet} violated a unique constraint on columns: {columns} (duplicate of row {other_row})',
+    'foreign_key_constraint_violation': 'Row {row} of worksheet {workbook}::{worksheet} violated a foreign constraint on column {column} (references column {fk_column} in worksheet {fk_workbook}::{fk_worksheet})',
+    'invalid_value'                   : 'Row {row} in worksheet {workbook}::{worksheet} has an invalid value for column {column}',
+
+    # new form
+
+    'empty_value__column'                 : 'Empty value for column {column} of row {row}',
+    'empty_value__row'                    : 'Empty value for row {row} of column {column}',
+    'fk_constraint_violation__columns'    : 'Value(s) for column(s) {columns} of row {row} does not exist in {fk_workbook}',
+    'unique_constraint_violation__columns': 'Value(s) for column(s) {columns} of row {row} is a duplicate of row {duplicate_of_row}',
+
+
+
+    'cell_not_empty': 'Cell {cell} is expected to be empty; {reason}',
+
+
+    'result_type__missing': 'Result type is missing for cell {cell}'
+}
+
+ANALYSIS_WORKBOOK_ERROR_MESSAGES = {
+    'sample_heading_missing':                  'Cell must be "SAMPLE"',
+    'subsample_heading_missing':               'Cell must be "SUBSAMPLE"',
+    'metadata_type_heading_missing':           'Cell must be "METADATA_TYPE"',
+    'region_left_of_metadata_types_not_empty': 'Region left of metadata types is not empty',
+    'metadata_type_missing':                   'Metadata type is missing in cell {cell} of worksheet {workbook}::{worksheet}',
+    'metadata_type_duplicate':                 'Metadata type in cell {cell} of worksheet {workbook}::{worksheet} is a duplicate',
+    'result_type_metadata_pair_duplicate':     'Result type-metadata pair in column {column} of worksheet {workbook}::{worksheet} is a duplicate',
+    'subsample_values_missing':                'Missing value(s) for subsample in row {row} of worksheet {workbook}::{worksheet}',
+    'sample_does_not_exist':                   'Sample in cell {cell} of worksheet {workbook}::{worksheet} does not exist',
+    'subsample_duplicate':                     'Subsample in row {row} of worksheet {workbook}::{worksheet} is a duplicate',
+    'missing_result_type':                     'Missing result type'
 }
 
 
-@pytest.fixture
-def test_dataset_data() -> DatasetData:
-    return DatasetData.from_dict(TEST_DATA)
-
 
 @pytest.fixture
-def test_dataset_path(tmp_path) -> Path:
-    dataset_path = tmp_path / 'ca.cngo.test'
+def fixture_dataset_excel(tmp_path) -> tuple[Path, DatasetExcelData]:
+    dataset_path = tmp_path / FIXTURE_DATASET_NAME
     dataset_path.mkdir()
-    return dataset_path
+
+    with FIXTURE_DATASET_EXCEL_DATA_PATH.open() as f:
+        fixture_data = yaml.load(f, Loader=yaml.SafeLoader)
+
+    dataset_excel_data = DatasetExcelData.from_dict(fixture_data)
+
+    return dataset_path, dataset_excel_data

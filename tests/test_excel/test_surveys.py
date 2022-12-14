@@ -1,74 +1,78 @@
+import copy
 import os
 
-import numpy as np
 from openpyxl import load_workbook
 import pandas as pd
 import pytest
 
 from geochem_dataset.excel import Dataset
-from geochem_dataset.excel.dataclasses import Survey
 from geochem_dataset.excel.exceptions import IntegrityError
 
-from tests.test_excel.helpers.utils import xlref, xlrowref, xlcolref
-
-TEST_FILE_NAME = 'SURVEYS.xlsx'
-TEST_SHEET_NAME = 'SURVEYS'
-TEST_COLUMNS = ('TITLE', 'ORGANIZATION', 'YEAR_BEGIN', 'YEAR_END', 'PARTY_LEADER', 'DESCRIPTION', 'GSC_CATALOG_NUMBER')
-TEST_DATA = [
-    ('2011, Till sampling survey, Hall Peninsula. Canada-Nunavut Geoscience Office', 'Canada-Nunavut Geoscience Office', 2011, 2013, 'Tremblay, Tommy', 'A test description', 1000),
-]
-
-ERROR_MESSAGES = {
-    'missing_worksheet':           'Worksheet {worksheet} is missing from workbook {workbook}',
-    'missing_columns':             'Worksheet {workbook}::{worksheet} is missing columns: {column_names}',
-    'extra_columns':               'Worksheet {workbook}::{worksheet} has extra columns: {column_names}',
-    'too_few_rows':                'Worksheet {workbook}::{worksheet} has too few rows (min is {min_rows} and max is {max_rows})',
-    'unique_constraint_violation': 'Row {row} of worksheet {workbook}::{worksheet} violated a unique constraint on columns: {columns} (duplicate of row {other_row})',
-}
+from .conftest import ERROR_MESSAGES
 
 
-class TestSurveys:
-    def test_surveys(self, dataset_path):
-        # Build expected rows
+class TestSurveysValid:
+    def test_surveys(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        expected_surveys = [Survey(*args) for args in TEST_DATA]
-
-        # Assert
+        expected_surveys_worksheet_data = dataset_excel_data.workbooks['SURVEYS.xlsx'].worksheets['SURVEYS']
+        expected_surveys = list(expected_surveys_worksheet_data.iter_objects())
 
         with Dataset(dataset_path) as dataset:
             surveys = list(dataset.surveys)
             assert surveys == expected_surveys
 
-    def test_surveys_with_empty_file(self, dataset_path):
-        # Modify surveys file
+    def test_surveys_with_extra_columns_ok(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        surveys_path = dataset_path / TEST_FILE_NAME
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
+        df = pd.read_excel(surveys_path, sheet_name='SURVEYS')
+
+        with pd.ExcelWriter(surveys_path) as writer:
+            df['CAT'] = ['Skittles'] * len(df)
+            df.to_excel(writer, sheet_name='SURVEYS', index=False)
+
+        expected_dataset_excel_data = copy.deepcopy(dataset_excel_data)
+        expected_survey_worksheet_data = expected_dataset_excel_data.workbooks['SURVEYS.xlsx'].worksheets['SURVEYS']
+        expected_survey_worksheet_data.Meta.extra_headings = ('CAT',)
+        for x in expected_survey_worksheet_data.data['surveys']:
+            x += ['Skittles']
+        expected_surveys = list(expected_survey_worksheet_data.iter_objects())
+
+        with Dataset(dataset_path, extra_columns_ok=True) as dataset:
+            surveys = list(dataset.surveys)
+            assert surveys == expected_surveys
+
+
+class TestSurveysInvalid:
+    def test_surveys_with_empty_file(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
+
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
         os.truncate(surveys_path, 0)
-
-        # Assert
 
         with pytest.raises(ValueError) as excinfo:
             with Dataset(dataset_path) as dataset:
                 pass
 
-    def test_surveys_with_missing_sheet(self, dataset_path):
-        # Modify surveys file
+    def test_surveys_with_missing_sheet(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        surveys_path = dataset_path / TEST_FILE_NAME
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
 
         wb = load_workbook(surveys_path)
-        ws = wb[TEST_SHEET_NAME]
+        ws = wb['SURVEYS']
         ws.title = "Skittles"
         wb.save(surveys_path)
 
-        # Expected
-
         expected_error_msg_kwargs = {
-            'workbook': TEST_FILE_NAME,
-            'worksheet': TEST_SHEET_NAME,
+            'workbook' : 'SURVEYS.xlsx',
+            'worksheet': 'SURVEYS',
         }
-
-        # Assert
 
         with pytest.raises(IntegrityError) as excinfo:
             with Dataset(dataset_path) as dataset:
@@ -76,24 +80,21 @@ class TestSurveys:
 
         assert excinfo.value.args[0] == ERROR_MESSAGES['missing_worksheet'].format(**expected_error_msg_kwargs)
 
-    def test_surveys_with_missing_columns(self, dataset_path):
-        # Modify surveys file
+    def test_surveys_with_missing_columns(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        surveys_path = dataset_path / TEST_FILE_NAME
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
 
         with pd.ExcelWriter(surveys_path) as writer:
             df = pd.DataFrame()
-            df.to_excel(writer, sheet_name=TEST_SHEET_NAME, index=False)
-
-        # Expected
+            df.to_excel(writer, sheet_name='SURVEYS', index=False)
 
         expected_error_msg_kwargs = {
-            'workbook': TEST_FILE_NAME,
-            'worksheet': TEST_SHEET_NAME,
-            'column_names': ', '.join(sorted(TEST_COLUMNS)),
+            'workbook' : 'SURVEYS.xlsx',
+            'worksheet': 'SURVEYS',
+            'columns'  : 'DESCRIPTION, GSC_CATALOG_NUMBER, ORGANIZATION, PARTY_LEADER, TITLE, YEAR_BEGIN, YEAR_END',
         }
-
-        # Assert
 
         with pytest.raises(IntegrityError) as excinfo:
             with Dataset(dataset_path) as dataset:
@@ -101,79 +102,47 @@ class TestSurveys:
 
         assert excinfo.value.args[0] == ERROR_MESSAGES['missing_columns'].format(**expected_error_msg_kwargs)
 
-    def test_surveys_with_extra_columns(self, dataset_path):
-        # Modify surveys file
+    def test_surveys_with_extra_columns_not_ok(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        surveys_path = dataset_path / TEST_FILE_NAME
-
-        df = pd.read_excel(surveys_path, sheet_name=TEST_SHEET_NAME)
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
+        df = pd.read_excel(surveys_path, sheet_name='SURVEYS')
 
         with pd.ExcelWriter(surveys_path) as writer:
-            df['DOG'] = ['Yoru']
-            df['CAT'] = ['Skittles']
-            df.to_excel(writer, sheet_name=TEST_SHEET_NAME, index=False)
-
-        # Expected
+            df['DOG'] = ['Yoru'] * len(df)
+            df['CAT'] = ['Skittles'] * len(df)
+            df.to_excel(writer, sheet_name='SURVEYS', index=False)
 
         expected_error_msg_kwargs = {
-            'workbook': TEST_FILE_NAME,
-            'worksheet': TEST_SHEET_NAME,
-            'column_names': 'CAT, DOG',
+            'workbook' : 'SURVEYS.xlsx',
+            'worksheet': 'SURVEYS',
+            'columns'  : 'CAT, DOG',
         }
 
-        # Assert
-
         with pytest.raises(IntegrityError) as excinfo:
-            with Dataset(dataset_path) as datasetError:
+            with Dataset(dataset_path) as dataset:
                 pass
 
         assert excinfo.value.args[0] == ERROR_MESSAGES['extra_columns'].format(**expected_error_msg_kwargs)
 
-    def test_surveys_with_extra_columns_ok(self, dataset_path):
-        # Modify surveys file
+    def test_surveys_with_no_data(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        surveys_path = dataset_path / TEST_FILE_NAME
-
-        df = pd.read_excel(surveys_path, sheet_name=TEST_SHEET_NAME)
-
-        with pd.ExcelWriter(surveys_path) as writer:
-            df['CAT'] = ['Skittles']
-            df.to_excel(writer, sheet_name=TEST_SHEET_NAME, index=False)
-
-        # Build expected
-
-        NEW_TEST_DATA = TEST_DATA.copy()
-        NEW_TEST_DATA[0] = NEW_TEST_DATA[0] + (frozenset((('cat', 'Skittles'),)),)
-
-        expected_surveys = [Survey(*args) for args in NEW_TEST_DATA]
-
-        # Assert
-
-        with Dataset(dataset_path, extra_columns_ok=True) as dataset:
-            surveys = list(dataset.surveys)
-            assert surveys == expected_surveys
-
-    def test_surveys_with_no_data(self, dataset_path):
-        # Modify surveys file
-
-        surveys_path = dataset_path / TEST_FILE_NAME
-
-        df = pd.read_excel(surveys_path, sheet_name=TEST_SHEET_NAME)
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
+        df = pd.read_excel(surveys_path, sheet_name='SURVEYS')
 
         with pd.ExcelWriter(surveys_path) as writer:
             df = df[0:0]
-            df.to_excel(writer, sheet_name=TEST_SHEET_NAME, index=False)
-
-        # Expected
+            df.to_excel(writer, sheet_name='SURVEYS', index=False)
 
         expected_error_msg_kwargs = {
-            'workbook': TEST_FILE_NAME,
-            'worksheet': TEST_SHEET_NAME,
+            'workbook': 'SURVEYS.xlsx',
+            'worksheet': 'SURVEYS',
             'min_rows': 1,
             'max_rows': 'unlimited',
         }
-
-        # Assert
 
         with pytest.raises(IntegrityError) as excinfo:
             with Dataset(dataset_path) as dataset:
@@ -181,31 +150,27 @@ class TestSurveys:
 
         assert excinfo.value.args[0] == ERROR_MESSAGES['too_few_rows'].format(**expected_error_msg_kwargs)
 
-    def test_surveys_with_too_much_data(self, dataset_path):
+    def test_surveys_with_too_much_data(self):
         assert True  # Not necessary since an unlimited number of rows is permitted
 
-    def test_surveys_with_duplicate_title(self, dataset_path):
-        # Modify
+    def test_surveys_with_duplicate(self, fixture_dataset_excel):
+        dataset_path, dataset_excel_data = fixture_dataset_excel
+        dataset_excel_data.to_excel(dataset_path)
 
-        surveys_path = dataset_path / TEST_FILE_NAME
-
-        df = pd.read_excel(surveys_path, sheet_name=TEST_SHEET_NAME)
+        surveys_path = dataset_path / 'SURVEYS.xlsx'
+        df = pd.read_excel(surveys_path, sheet_name='SURVEYS')
 
         with pd.ExcelWriter(surveys_path) as writer:
-            df = df.append(df.copy(), ignore_index=True)
-            df.to_excel(writer, sheet_name=TEST_SHEET_NAME, index=False)
-
-        # Expected
+            df = pd.concat([df, df], ignore_index=True)
+            df.to_excel(writer, sheet_name='SURVEYS', index=False)
 
         expected_error_msg_kwargs = {
-            'workbook': TEST_FILE_NAME,
-            'worksheet': TEST_SHEET_NAME,
-            'row': 3,
-            'columns': 'TITLE',
+            'workbook' : 'SURVEYS.xlsx',
+            'worksheet': 'SURVEYS',
+            'row'      : 3,
+            'columns'  : 'TITLE',
             'other_row': 2
         }
-
-        # Assert
 
         with pytest.raises(IntegrityError) as excinfo:
             with Dataset(dataset_path) as dataset:

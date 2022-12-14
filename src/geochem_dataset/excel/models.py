@@ -1,32 +1,41 @@
-from dataclasses import dataclass, field
-from decimal import Decimal
-from typing import Dict, Tuple
+from __future__ import annotations
+
+from dataclasses import dataclass, field, fields
+
+Extra = dict[str, str]
 
 
-Extra = Dict[str, str]
-
-
-@dataclass(frozen=True)
+@dataclass
 class Document:
+    row_idx: int
     recommended_citation: str
     extra: Extra = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Survey:
+    row_idx: int
     title: str
     organization: str
     year_begin: int
     year_end: int
     party_leader: str
     description: str
-    gsc_catalog_number: int
+    gsc_catalog_number: str
     extra: Extra = field(default_factory=dict)
 
+    def __post_init__(self):
+        self._cast_fields()
 
-@dataclass(frozen=True)
+    def _cast_fields(self):
+        if not isinstance(self.gsc_catalog_number, str):
+            self.gsc_catalog_number = str(self.gsc_catalog_number)
+
+
+@dataclass
 class Sample:
-    survey: Survey
+    row_idx: int
+    surveys_row_idx: int
     station: str
     earthmat: str
     name: str
@@ -44,14 +53,12 @@ class Sample:
     extra: Extra = field(default_factory=dict)
 
 
-ResultSubsample = Tuple[str, ...]
-ResultMetadata = Dict[str, str]
-
-
-@dataclass(frozen=True)
+@dataclass
 class Result:
-    sample: str
-    subsample: ResultSubsample
+    worksheet: str
+    cell: str
+    sample_row_idx: int
+    subsample: tuple[str, ...]
     type: str
-    metadata: ResultMetadata
+    metadata_set: dict[str, str]
     value: str

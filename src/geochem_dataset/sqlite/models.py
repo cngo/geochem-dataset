@@ -44,11 +44,11 @@ class Survey(BaseModel):
     dataset            = ForeignKeyField(Dataset, backref='surveys')
     title              = CharField()
     organization       = CharField()
-    year_begin         = IntegerField()
+    year_begin         = IntegerField(null=True)
     year_end           = IntegerField(null=True)
     party_leader       = CharField(null=True, default=None)
     description        = CharField(null=True, default=None)
-    gsc_catalog_number = IntegerField(null=True, default=None)
+    gsc_catalog_number = CharField(null=True, default=None)
     extra              = JSONField(null=True, default=None)
 
     class Meta:
@@ -63,8 +63,8 @@ class Survey(BaseModel):
 
 class Sample(BaseModel):
     survey        = ForeignKeyField(Survey, backref='samples')
-    station       = CharField()
-    earthmat      = CharField()
+    station       = CharField(null=True, default=None)
+    earthmat      = CharField(null=True, default=None)
     name          = CharField()
     lat_nad27     = FloatField(null=True)
     long_nad27    = FloatField(null=True)
@@ -75,7 +75,7 @@ class Sample(BaseModel):
     x_nad83       = FloatField(null=True)
     y_nad83       = FloatField(null=True)
     zone          = CharField(null=True, default=None)
-    earthmat_type = CharField()
+    earthmat_type = CharField(null=True, default=None)
     status        = CharField(null=True, default=None)
     extra         = JSONField(null=True, default=None)
 

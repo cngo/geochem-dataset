@@ -33,6 +33,6 @@ class TestDataset:
         dataset_path.mkdir()
 
         with pytest.raises(InvalidDatasetNameError) as excinfo:
-            dataset = Dataset(dataset_path)
+            Dataset(dataset_path)
 
         assert excinfo.value.args[0] == 'Dataset name must use reverse domain name notation'

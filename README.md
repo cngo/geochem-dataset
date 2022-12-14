@@ -7,11 +7,13 @@ It is based on the specification presented in the Summary of Activities 2019 vol
 
 ## Requirements
 
-- Python 3.9
+- Python >=3.8
 - pipenv
 
 
+
 ## Usage
+
 
 Prepare the environment:
 
@@ -21,17 +23,24 @@ Prepare the environment:
 
 ### Excel
 
-In Python:
+```python
 
-    from geochem_dataset.excel import Dataset
+from geochem_dataset.excel import Dataset
 
-    path = "C:/Users/Duchess/Desktop/Datasets/ca.cngo.gds-2021-001
-    dataset = Dataset(path)
+d = Dataset("DATASETS/COMPLETE/ca.cngo.gds-2021-001")
 
-    print(list(dataset.documents))
-    print(list(dataset.surveys))
-    print(list(dataset.samples))
-    print(list(dataset.analysis_bulk_results))
+
+for document in dataset.documents:
+    print(document)
+
+for survey in dataset.surveys:
+    print(survey)
+
+for sample in dataset.samples:
+    print(sample)
+
+for result in dataset.analysis_bulk_results:
+    print(result)
 
 The iterators above, e.g. `dataset.documents`, will yield items as frozen dataclasses. See `src/geochem_dataset.excel/dataclasses.py` for their definitions.
 
@@ -57,3 +66,17 @@ Prepare the environment:
 Run the tests:
 
     tox
+
+
+## Figures
+
+### BULK.xlsx worksheet structure
+
+| SAMPLE   | SUBSAMPLE   | ... | SUB...SUBSAMPLE   | METADATA_TYPE   | result_type_1 | ... | result_type_y |
+|----------|-------------|-----|-------------------|-----------------|---------------|-----|---------------|
+|          |             |     |                   | metadata_type_1 | metadata_1_1  | ... | metadata_1_y  |
+|          |             |     |                   | ...             | ...           | ... | ...           |
+|          |             |     |                   | metadata_type_z | metadata_z_1  | ... | metadata_z_y  |
+| sample_1 | subsample_1 | ... | sub...subsample_1 |                 | result_1_1    | ... | result_1_y    |
+| ...      | ...         | ... | ...               |                 | ...           | ... | ...           |
+| sample_x | subsample_x | ... | sub...subsample_x |                 | result_x_1    | ... | result_x_y    |
